@@ -1,4 +1,4 @@
 Installing
 ----------
 
-Run `make`. Binaries will be in current directory.
+Run `./build.sh`. Binaries will be in current directory.
