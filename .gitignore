@@ -4,3 +4,6 @@ testdb
 *.a
 *.o
 lib/*
+sync-primary
+sync-ctl
+sync-replica
