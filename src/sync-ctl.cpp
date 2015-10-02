@@ -1,6 +1,7 @@
 #include <chrono>
 #include <functional>
 #include <iostream>
+#include <signal.h>
 #include <string>
 #include <thread>
 

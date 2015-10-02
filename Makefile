@@ -1,6 +1,6 @@
 UNAME := $(shell uname)
 ifeq ($(UNAME), Linux)
-	LD=
+	LD=-ldl
 endif
 ifeq ($(UNAME), Darwin)
 	LD=-framework CoreFoundation -framework CoreServices
@@ -11,7 +11,7 @@ CFLAGS ?= -O0 -g
 CFLAGS += -I. -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wstrict-prototypes
 
 CC=clang++
-CCFLAGS=-std=c++14 -Wall -Werror -pedantic -g -pthread -Qunused-arguments
+CCFLAGS=-std=c++11 -Wall -Werror -pedantic -g -pthread -Qunused-arguments
 LDLIBS=libsnappy.a libfswatch.a libcrypto.a libssl.a
 SNAPPY_OBJS=lib/snappy/snappy.o lib/snappy/snappy-c.o \
 	lib/snappy/snappy-sinksource.o lib/snappy/snappy-stubs-internal.o
@@ -33,7 +33,7 @@ SYNC_CTL_OBJS=$(subst .c,.o,$(SYNC_C_SRCS)) $(subst .cpp,.o,$(SYNC_CTL_SRCS))
 all: $(LIBNAME) sync-primary sync-replica sync-ctl
 
 libcrypto.a:
-	pushd lib/openssl; export KERNEL_BITS=64; ./config; make; popd
+	cd lib/openssl; export KERNEL_BITS=64; ./config; make; cd ../..
 	cp lib/openssl/libcrypto.a .
 	cp lib/openssl/libssl.a .
 

@@ -2,6 +2,7 @@
 #include <functional>
 #include <iostream>
 #include <regex>
+#include <signal.h>
 #include <thread>
 
 #include "fs/scanner.h"
@@ -88,7 +89,7 @@ int main(int argc, char **argv) {
             STATUS(statusLine, "Refreshing periodically.");
             
             StatusLine::Int lastOutbound = 0;
-            StatusLine::Set("outRate", [&lastOutbound] (const StatusLine::Env &env) {
+            StatusLine::Set("outRate", [&lastOutbound] (const StatusLine::Env &env) -> int64_t {
                 auto outbound = env.find("outbound");
                 if (outbound != env.end()) {
                     const StatusLine::Variable &var = outbound->second;
@@ -96,7 +97,7 @@ int main(int argc, char **argv) {
                     lastOutbound = newOutbound;
                     return (newOutbound - lastOutbound) * 4;
                 } else {
-                    return 0LL;
+                    return 0;
                 }
             });
 

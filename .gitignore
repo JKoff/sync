@@ -1,3 +1,6 @@
 node_modules
 testdir
 testdb
+*.a
+*.o
+lib/*

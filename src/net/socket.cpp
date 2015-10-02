@@ -1,13 +1,5 @@
 #include "socket.h"
 
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <errno.h>
-// #include <unistd.h>
-// #include <string.h>
-// #include <sys/types.h>
-// #include <sys/socket.h>
-// #include <sys/un.h>
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
@@ -264,19 +256,20 @@ void Socket::receiveSome(char *buf, size_t neededIn) {
 	assert(needed == 0);
 }
 
+template <typename T>
+void deserializeFromStream(const char *buf, const size_t size, T &result) {
+    string str(buf, size);
+    istringstream ss(str, istringstream::binary);
+    ss.exceptions(istringstream::failbit | istringstream::badbit);
+    result.deserialize(ss);
+}
+
 Socket::Frame Socket::receive(chrono::duration<uint64_t> timeout) {
 	char *buf = this->buf.get();
 	char *buf2 = this->buf2.get();
 
 	timeval tv = chronoToTimeval(timeout);
 	setsockopt(this->sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(timeval));
-
-	function<istringstream (char*, size_t)> makeStream = [] (char *buf, size_t sz) {
-		string str(buf, sz);
-		istringstream ss(str, istringstream::binary);
-		ss.exceptions(istringstream::failbit | istringstream::badbit);
-		return ss;
-	};
 
 	int bufSize = 0;
 
@@ -290,8 +283,7 @@ Socket::Frame Socket::receive(chrono::duration<uint64_t> timeout) {
 		// Receive and deserialize header
 
 		this->receiveSome(buf, enchdr.wireSize());
-		istringstream stream = makeStream(buf, enchdr.wireSize());
-		enchdr.deserialize(stream);
+		deserializeFromStream(buf, enchdr.wireSize(), enchdr);
 		assert(enchdr.size <= this->BUF_SIZE);
 
 		// Receive and decrypt body
@@ -318,8 +310,7 @@ Socket::Frame Socket::receive(chrono::duration<uint64_t> timeout) {
 
 		// Deserialize header
 
-		istringstream stream = makeStream(buf2, hdr.wireSize());
-		hdr.deserialize(stream);
+		deserializeFromStream(buf2, hdr.wireSize(), hdr);
 		assert(hdr.type == MSG::Type::COMPRESSED);
 		assert(hdr.size <= this->BUF_SIZE);
 
@@ -348,9 +339,7 @@ Socket::Frame Socket::receive(chrono::duration<uint64_t> timeout) {
 
 		// Deserialize header
 		{
-			istringstream stream = makeStream(buf, hdr.wireSize());
-			hdr.deserialize(stream);
-
+			deserializeFromStream(buf, hdr.wireSize(), hdr);
 			assert(hdr.type != MSG::Type::UNSET);
 			assert(hdr.size <= this->BUF_SIZE);
 		}
@@ -358,10 +347,7 @@ Socket::Frame Socket::receive(chrono::duration<uint64_t> timeout) {
 		// Deserialize body
 		{
 			unique_ptr<MSG::Base> sub = MSG::Factory::Create(hdr.type);
-
-			istringstream stream = makeStream(buf + hdr.wireSize(), hdr.size - hdr.wireSize());
-			sub->deserialize(stream);
-
+			deserializeFromStream(buf + hdr.wireSize(), hdr.size - hdr.wireSize(), *sub);
 			return Frame{hdr, move(sub)};
 		}
 	}
