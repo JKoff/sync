@@ -21,7 +21,7 @@ enum class SyncClientProcessMessageType {
 
 class SyncClientProcess : public Process<SyncClientProcessMessageType> {
 public:
-	SyncClientProcess(const PolicyHost &host, Index &index, TransferProcess &transferProc);
+	SyncClientProcess(const PolicyHost &host, Index &index, TransferProcess &transferProc, bool verbose);
 
 	///////////////////////////////////////
 	// Interface methods (caller thread) //
@@ -41,6 +41,7 @@ private:
 	Socket remote;
 	TransferProcess *transferProc;
 	StatusLine status;
+	bool verbose;
 };
 
 #endif

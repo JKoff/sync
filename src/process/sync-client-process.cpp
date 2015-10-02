@@ -11,10 +11,13 @@ using namespace std;
 // Dispatch //
 //////////////
 
-SyncClientProcess::SyncClientProcess(const PolicyHost &host, Index &index, TransferProcess &transferProc) {
+SyncClientProcess::SyncClientProcess(
+    const PolicyHost &host, Index &index, TransferProcess &transferProc, bool verbose
+) {
     this->host = host;
     this->index = &index;
     this->transferProc = &transferProc;
+    this->verbose = verbose;
     this->th = thread([this] () {
         LOG("-- Starting SyncClientProcess thread for " << this->host);
         this->status.init("SyncClientProcess", this->host.toString());
@@ -137,6 +140,9 @@ void SyncClientProcess::performFullsync() {
         return result;
     }, [this] (const PolicyFile &file) {
         // Emit function
+        if (this->verbose) {
+            LOG("Must transfer " << file.path);
+        }
         this->transferProc->castTransfer(this->host, file);
     });
 

@@ -22,7 +22,7 @@
 using namespace std;
 
 void exitWithUsage(const string &progname) {
-    cout << "Usage: " << progname << " instance-id cookie [--replica=<host:port>]* [--exclude=<regex>]*" << endl;
+    cout << "Usage: " << progname << " instance-id cookie [--replica=<host:port>]* [--exclude=<regex>]* [--verbose]" << endl;
     exit(0);
 }
 
@@ -39,6 +39,7 @@ int main(int argc, char **argv) {
     const Abspath ROOT = realpath(".");
     const string INSTANCE_ID = argv[1];
     const string COOKIE = argv[2];
+    bool verbose = false;
     vector<unique_ptr<SyncClientProcess>> syncThreads;
     Index index(ROOT);
 
@@ -46,6 +47,11 @@ int main(int argc, char **argv) {
     vector<regex> excludes;
     for (int i=3; i < argc; i++) {
         string str = argv[i];
+        if (str == "--verbose") {
+            verbose = true;
+            continue;
+        }
+
         string::size_type eqPos = str.find("=", 0);
         if (eqPos == string::npos) {
             exitWithUsage(argv[0]);
@@ -141,7 +147,7 @@ int main(int argc, char **argv) {
 
     for (auto policyHost : policyHosts) {
         syncThreads.push_back(unique_ptr<SyncClientProcess>(
-            new SyncClientProcess(policyHost, index, transferProc)));
+            new SyncClientProcess(policyHost, index, transferProc, verbose)));
     }
 
 
