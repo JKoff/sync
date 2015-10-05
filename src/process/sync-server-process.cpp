@@ -142,9 +142,9 @@ void SyncServerProcess::syncLoop(State &st) {
                 MSG::DiffResp resp;
                 // LOG("Has payload |queries|=" << req->queries.size() << " and epoch=" << req->epoch);
                 for (const auto &query : req->queries) {
-                    // LOG("Checking if '" << query.path << "' matches " << query.hash);
-                    // LOG("The hash we have for it is " << this->index->hash(query.path));
                     bool matches = this->index->hash(query.path) == query.hash;
+                    // LOG("Checking if '" << query.path << "' matches " << query.hash << ". Answer? " << matches);
+                    // LOG("The hash we have for it is " << this->index->hash(query.path));
                     this->index->setEpoch(query.path, req->epoch);
                     this->index->setExpectedHash(query.path, query.hash);
                     if (!matches) {

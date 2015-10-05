@@ -9,7 +9,8 @@ void serializeInteger(std::ostream &stream, const T &val) {
 	// std::cout << "Serializing " << val << " of size " << sz << std::endl;
 	for (int i=sz-1; i >= 0; i--) {
 		// MSB to LSB
-		T mask = 0xFF << (i * 8);
+		int offset = i * 8;
+		T mask = static_cast<T>(0xFF) << offset;
 		uint8_t byte = (val & mask) >> (i * 8);
 		stream.write((char*)&byte, 1);
 		// std::cout << "Byte " << std::hex << std::showbase << static_cast<uint64_t>(byte) << "." << std::endl;

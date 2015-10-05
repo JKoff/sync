@@ -9,6 +9,8 @@
 
 #include "retter/xxHash/xxhash.h"
 
+#include "../util/log.h"
+
 using namespace std;
 
 
