@@ -17,6 +17,11 @@
 
 using namespace std;
 
+void exitWithUsage(const string &progname) {
+    cout << "Usage: " << progname << " instance-id cookie [--bind=<host:port>] [--exclude=<regex>]*" << endl;
+    exit(0);
+}
+
 int main(int argc, char **argv) {
     using namespace placeholders;
 
@@ -24,15 +29,39 @@ int main(int argc, char **argv) {
     signal(SIGPIPE, SIG_IGN);
 
     if (argc < 3) {
-        cout << "Usage: " << argv[0] << " instance-id cookie [host] [port]" << endl;
-        exit(0);
+        exitWithUsage(argv[0]);
     }
 
     const string ROOT = realpath(".");
     const string INSTANCE_ID(argv[1]);
     const string COOKIE(argv[2]);
-    const string HOST(argc >= 4 ? argv[3] : "0.0.0.0");
-    const string PORT(argc >= 5 ? argv[4] : "7440");
+    string HOST;
+    string PORT;
+
+    vector<regex> excludes;  // empty since not supported/needed by replica
+    for (int i=3; i < argc; i++) {
+        string str = argv[i];
+
+        string::size_type eqPos = str.find("=", 0);
+        if (eqPos == string::npos) {
+            exitWithUsage(argv[0]);
+        }
+
+        string name = str.substr(2, eqPos - 2);
+        string val = str.substr(eqPos + 1);
+
+        if (name == "bind") {
+            string::size_type colPos = val.find(":", 0);
+            if (colPos == string::npos) {
+                exitWithUsage(argv[0]);
+            }
+            HOST = val.substr(0, colPos);
+            PORT = val.substr(colPos + 1);
+        } else if (name == "exclude") {
+            regex r(val);
+            excludes.push_back(r);
+        }
+    }
 
     Socket::CryptoInit(COOKIE);
 
@@ -55,7 +84,6 @@ int main(int argc, char **argv) {
 
     Index index(ROOT);
 
-    vector<regex> excludes;  // empty since not supported/needed by replica
     function<bool (const string &)> filterFn = bind(filterPath, ref(ROOT), ref(excludes), _1);
     function<void (const FileRecord &)> updateFn = [&index, &filterFn] (const FileRecord &rec) {
         if (filterFn(rec.path)) {
