@@ -112,21 +112,6 @@ int main(int argc, char **argv) {
         }
     });
 
-    thread inputThread = thread([] () {
-        StatusLine statusLine("Input");
-        int mode = 0;
-        for (;;) {
-            STATUS(statusLine, "Mode: " << mode);
-            getchar();
-            mode = (mode + 1) % 2;
-
-            string erase = "\033[F";
-            string up = "\033[J";
-            cout << up << erase;
-            StatusLine::Refresh(cout);
-        }
-    });
-
 
     /////////////////////////
     // Connect to replicas //
