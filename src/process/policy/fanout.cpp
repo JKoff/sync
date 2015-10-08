@@ -11,9 +11,10 @@ void FanoutPolicy::push(const PolicyHost &host, const PolicyFile &file) {
 	this->pending[host].push_back(file);
 	++this->hostStats[host].remaining;
 
-	if (this->hostStats[host].remaining == 1) {
-		LOG("Started fanout.");
-	}
+	// Uncomment for perf timing
+	// if (this->hostStats[host].remaining == 1) {
+	// 	LOG("Started fanout.");
+	// }
 
 	this->cv.notify_one();
 }
@@ -32,9 +33,10 @@ PolicyPlan FanoutPolicy::pop(const PolicyHost &host) {
 	--this->hostStats[host].remaining;
 	++this->hostStats[host].completed;
 
-	if (this->hostStats[host].remaining == 0) {
-		LOG("Completed fanout.");
-	}
+	// Uncomment for perf timing
+	// if (this->hostStats[host].remaining == 0) {
+	// 	LOG("Completed fanout.");
+	// }
 
 	return plan;
 }
