@@ -195,6 +195,27 @@ int main(int argc, char **argv) {
         replica->castFullsync();
     }
 
+
+    // Sometimes due to an error or other unexpected condition, a re-sync may be required.
+    // AAE thread performs a full-sync at regular intervals. This shouldn't carry much more
+    // overhead than a ping<->pong exchange if there are no discrepancies.
+
+    thread aaeThread = thread([&policy, &syncThreads, &transferProc] () {
+        for (;;) {
+            this_thread::sleep_for(chrono::seconds(30));
+
+            // TODO: This won't entirely prevent race conditions.
+            //       That said, copying a file twice will usually be a low-impact
+            //       glitch, and the window should be fairly small.
+            policy.waitUntilEmpty();
+            transferProc.xfrCounter.waitUntilZero();
+
+            for (auto &replica : syncThreads) {
+                replica->castFullsync();
+            }
+        }
+    });
+
     STATUS(mainStatusLine, "Good to go.");
     watcherThread.join();
 }

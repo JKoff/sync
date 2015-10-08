@@ -14,7 +14,9 @@ public:
 	virtual void push(const PolicyHost &host, const PolicyFile &file);
 	virtual PolicyPlan pop(const PolicyHost &host);
 	virtual PolicyStats stats(const PolicyHost &host);
+	virtual void waitUntilEmpty();
 private:
+	std::condition_variable empty_cv;
 	std::condition_variable cv;
 	std::map<PolicyFile, std::deque<PolicyHost>> pending;
 	std::map<PolicyHost, PolicyStats> hostStats;

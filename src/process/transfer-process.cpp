@@ -2,10 +2,12 @@
 
 #include <cassert>
 #include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <stdexcept>
 #include <vector>
 
@@ -18,14 +20,31 @@ typedef struct {
     PolicyFile file;
 } TransferMsgPayload;
 
+/**
+    RAII-style mechanism for transiently incrementing a TransferCounter.
+    Will increment when its lifetime begins and decrement once its lifetime ends.
+ */
+class TransferCounterGuard {
+public:
+    TransferCounterGuard() = delete;
+    TransferCounterGuard(TransferCounter &parent) : parent(parent) {
+        parent.incr();
+    }
+    ~TransferCounterGuard() {
+        parent.decr();
+    }
+private:
+    TransferCounter &parent;
+};
+
 class TransferWorker {
 public:
     TransferWorker() = default;
-    void bind(const string &root, Policy *policy, const PolicyHost &host) {
+    void bind(const string &root, Policy *policy, const PolicyHost &host, TransferCounter &xfrCounter) {
         this->root = root;
         this->policy = policy;
         this->host = host;
-        this->th = thread([this] () {
+        this->th = thread([this, &xfrCounter] () {
             LOG("-- Starting TransferWorker");
 
             StatusLine status("TransferWorker", this->host.toString());
@@ -46,6 +65,7 @@ public:
                     for (;;) {
                         statusFn("Idle");
                         PolicyPlan plan = this->policy->pop(this->host);
+                        TransferCounterGuard xfrCounterGuard(xfrCounter);
 
                         try {
                             statusFn("Transferring");
@@ -140,7 +160,7 @@ void TransferProcess::main() {
     size_t npeers = this->peers.size();
     vector<TransferWorker> workers(WORKERS_PER_PEER * npeers);
     for (int i=0, n=workers.size(); i < n; i++) {
-        workers[i].bind(this->root, this->policy, this->peers[i % npeers]);
+        workers[i].bind(this->root, this->policy, this->peers[i % npeers], this->xfrCounter);
     }
 
     for (;;) {

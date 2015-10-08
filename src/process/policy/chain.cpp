@@ -57,3 +57,15 @@ PolicyStats ChainPolicy::stats(const PolicyHost &host) {
 	lock_guard<mutex> lock(this->m);
 	return this->hostStats[host];
 }
+
+void ChainPolicy::waitUntilEmpty() {
+	unique_lock<mutex> lock(this->m);
+	this->empty_cv.wait(lock, [this] {
+		int nQueued = 0;
+		for (const pair<PolicyHost,PolicyStats> &p : this->hostStats) {
+			const PolicyStats &stats = p.second;
+			nQueued += stats.remaining;
+		}
+		return nQueued == 0;
+	});
+}

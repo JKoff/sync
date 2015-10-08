@@ -20,6 +20,35 @@ enum class TransferProcessMessageType {
 };
 
 /**
+ * Thread-safe counter for keeping track of active transfers.
+ */
+class TransferCounter {
+public:
+    TransferCounter() : value(0) {}
+
+    void incr() {
+        lock_guard<mutex> lock(this->m);
+        ++this->value;
+    }
+
+    void decr() {
+        lock_guard<mutex> lock(this->m);
+        --this->value;
+        this->zero_cv.notify_one();
+    }
+
+    void waitUntilZero() {
+        unique_lock<mutex> lock(this->m);
+        this->zero_cv.wait(lock, [this] { return this->value == 0; });
+    }
+
+private:
+    condition_variable zero_cv;
+    mutex m;
+    int value;
+};
+
+/**
  * TransferProcess is instructed to send file X to host Y.
  * It acts as a controller + supervisor for policy + pool of transfer workers.
  * 
@@ -39,6 +68,8 @@ public:
 	///////////////////////////////////////
 	void castTransfer(const PolicyHost &host, const PolicyFile &file);
 	MSG::InfoResp callInfo();
+
+	TransferCounter xfrCounter;
 private:
 	/////////////////////////////////////////
 	// Implementation fns (managed thread) //

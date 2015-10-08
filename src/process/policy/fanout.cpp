@@ -33,6 +33,8 @@ PolicyPlan FanoutPolicy::pop(const PolicyHost &host) {
 	--this->hostStats[host].remaining;
 	++this->hostStats[host].completed;
 
+	this->empty_cv.notify_one();
+
 	// Uncomment for perf timing
 	// if (this->hostStats[host].remaining == 0) {
 	// 	LOG("Completed fanout.");
@@ -44,4 +46,16 @@ PolicyPlan FanoutPolicy::pop(const PolicyHost &host) {
 PolicyStats FanoutPolicy::stats(const PolicyHost &host) {
 	lock_guard<mutex> lock(this->m);
 	return this->hostStats[host];
+}
+
+void FanoutPolicy::waitUntilEmpty() {
+	unique_lock<mutex> lock(this->m);
+	this->empty_cv.wait(lock, [this] {
+		int nQueued = 0;
+		for (const pair<PolicyHost,PolicyStats> &p : this->hostStats) {
+			const PolicyStats &stats = p.second;
+			nQueued += stats.remaining;
+		}
+		return nQueued == 0;
+	});
 }
