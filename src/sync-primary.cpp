@@ -22,7 +22,13 @@
 using namespace std;
 
 void exitWithUsage(const string &progname) {
-    cout << "Usage: " << progname << " instance-id cookie [--replica=<host:port>]* [--exclude=<regex>]* [--verbose]" << endl;
+    cout << "Usage: " << progname << " "
+         << "instance-id "
+         << "cookie "
+         << "[--replica=<host:port>]* "
+         << "[--exclude=<regex>]* "
+         << "[--verbose] "
+         << "[--silent]" << endl;
     exit(0);
 }
 
@@ -32,6 +38,11 @@ int main(int argc, char **argv) {
     // MSG_NOSIGNAL in send() apparently doesn't entirely prevent SIGPIPE from occurring.
     signal(SIGPIPE, SIG_IGN);
 
+
+    ////////////////////
+    // Deal with ARGV //
+    ////////////////////
+
     if (argc < 3) {
         exitWithUsage(argv[0]);
     }
@@ -39,9 +50,7 @@ int main(int argc, char **argv) {
     const Abspath ROOT = realpath(".");
     const string INSTANCE_ID = argv[1];
     const string COOKIE = argv[2];
-    bool verbose = false;
-    vector<unique_ptr<SyncClientProcess>> syncThreads;
-    Index index(ROOT);
+    bool verbose = false, silent = false;
 
     vector<string> replicas;
     vector<regex> excludes;
@@ -49,6 +58,9 @@ int main(int argc, char **argv) {
         string str = argv[i];
         if (str == "--verbose") {
             verbose = true;
+            continue;
+        } else if (str == "--silent") {
+            silent = true;
             continue;
         }
 
@@ -67,6 +79,15 @@ int main(int argc, char **argv) {
             excludes.push_back(r);
         }
     }
+
+    logSilent(silent);
+
+
+    /////////////////////////////
+    // Initialize global state //
+    /////////////////////////////
+
+    Index index(ROOT);
 
     Socket::CryptoInit(COOKIE);
 
@@ -130,6 +151,7 @@ int main(int argc, char **argv) {
     FanoutPolicy policy(us);
     TransferProcess transferProc(ROOT, us, policy, policyHosts);
 
+    vector<unique_ptr<SyncClientProcess>> syncThreads;
     for (auto policyHost : policyHosts) {
         syncThreads.push_back(unique_ptr<SyncClientProcess>(
             new SyncClientProcess(policyHost, index, transferProc, verbose)));

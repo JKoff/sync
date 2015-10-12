@@ -27,6 +27,8 @@
 	log(_ss, std::cerr); \
 }
 
+void logSilent(bool isSilent);
+
 // Tags current thread for logging purposes.
 void logTag(std::string tag);
 

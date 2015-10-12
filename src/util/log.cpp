@@ -345,7 +345,17 @@ StatusLine::Env StatusLine::gEnv;
 // Log //
 /////////
 
+static bool silent;
+
+void logSilent(bool isSilent) {
+	silent = isSilent;
+}
+
 void log(const stringstream &ss, ostream &stream) {
+	if (silent) {
+		return;
+	}
+
 	lock_guard<mutex> lock(logMutex);
 
 	bool isTty = isatty(1);
@@ -370,6 +380,10 @@ void log(const stringstream &ss, ostream &stream) {
 }
 
 void logbuf(const void *buf, size_t len, ostream &stream) {
+	if (silent) {
+		return;
+	}
+
 	stringstream ssfmt;
 	for (int i=0; i < len; i++) {
 		ssfmt << setfill('0') << setw(2) << hex
@@ -390,6 +404,10 @@ void logbuf(const void *buf, size_t len, ostream &stream) {
 }
 
 void logTag(string tag) {
+	if (silent) {
+		return;
+	}
+	
 	lock_guard<mutex> lock(logMutex);
 	threadTags[this_thread::get_id()] = tag;
 }
