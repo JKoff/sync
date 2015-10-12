@@ -100,6 +100,11 @@ void CommandProcess::main() {
                 }
 
                 remote.send(resp);
+            } else if (type == MSG::Type::LOG_REQ) {
+                STATUS(statusLine, "Got LOG_REQ");
+
+                MSG::LogResp resp;
+                remote.send(resp);
             } else {
                 // Ignore.
                 ERR("CommandProcess received bad message. Type: " << (int)msg->type);

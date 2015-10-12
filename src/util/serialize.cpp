@@ -92,8 +92,11 @@ void deserialize(std::istream &stream, bool &val) {
 
 void serialize(std::ostream &stream, const std::string &str) {
     uint32_t sz = str.size();
+
     serialize(stream, sz);
-    stream.write((char*)str.data(), sz);
+    if (sz > 0) {
+	    stream.write((char*)str.data(), sz);
+	}
 }
 
 void deserialize(std::istream &stream, std::string &str) {
@@ -101,7 +104,9 @@ void deserialize(std::istream &stream, std::string &str) {
     deserialize(stream, sz);
 
     std::string s(sz, ' ');
-    stream.read((char*)&(*s.begin()), sz);
+    if (sz > 0) {
+	    stream.read((char*)&(*s.begin()), sz);
+	}
     swap(str, s);
 }
 

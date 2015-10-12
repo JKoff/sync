@@ -3,15 +3,21 @@
 
 #include <istream>
 #include <iostream>
+#include <map>
 #include <ostream>
 #include <string>
+#include <thread>
 #include <vector>
-#include "log.h"
 #include "max-size-buffer.h"
 
 namespace MSG {
 	enum class Type : uint8_t;
 }
+
+
+/////////////////////
+// Primitive types //
+/////////////////////
 
 void serialize(std::ostream &stream, const uint8_t &val);
 void deserialize(std::istream &stream, uint8_t &val);
@@ -31,14 +37,29 @@ void deserialize(std::istream &stream, int64_t &val);
 void serialize(std::ostream &stream, const bool &val);
 void deserialize(std::istream &stream, bool &val);
 
-void serialize(std::ostream &stream, const std::string &str);
-void deserialize(std::istream &stream, std::string &str);
+
+///////////
+// Enums //
+///////////
 
 void serialize(std::ostream &stream, const MSG::Type &type);
 void deserialize(std::istream &stream, MSG::Type &type);
 
+
+/////////////////////
+// Composite types //
+/////////////////////
+
+void serialize(std::ostream &stream, const std::string &str);
+void deserialize(std::istream &stream, std::string &str);
+
 void serialize(std::ostream &stream, const std::vector<uint8_t> &vec);
 void deserialize(std::istream &stream, std::vector<uint8_t> &vec);
+
+
+///////////////////
+// Generic types //
+///////////////////
 
 template <size_t Size>
 void serialize(std::ostream &stream, const MaxSizeBuffer<Size> &vec) {
@@ -58,6 +79,17 @@ void deserialize(std::istream &stream, MaxSizeBuffer<Size> &vec) {
 }
 
 // Classes/structs with serialize/deserialize methods
+
+template <typename T>
+void serialize(std::ostream &stream, T *obj) {
+    obj->serialize(stream);
+}
+
+template <typename T>
+void deserialize(std::istream &stream, T *obj) {
+    obj->deserialize(stream);
+}
+
 
 template <typename T>
 void serialize(std::ostream &stream, const T &obj) {
@@ -88,6 +120,42 @@ void deserialize(std::istream &stream, std::vector<T> &vec) {
 
     for (int i=0; i < sz; i++) {
     	deserialize(stream, vec[i]);
+    }
+}
+
+
+template <typename T, typename U>
+void serialize(std::ostream &stream, const std::pair<T, U> &p) {   
+    serialize(stream, p.first);
+    serialize(stream, p.second);
+}
+
+template <typename T, typename U>
+void deserialize(std::istream &stream, std::pair<T, U> &p) {
+    deserialize(stream, p.first);
+    deserialize(stream, p.second);
+}
+
+
+template <typename T, typename U>
+void serialize(std::ostream &stream, const std::map<T, U> &m) {   
+    uint64_t sz = m.size();
+    serialize(stream, sz);
+
+    for (const auto &el : m) {
+        serialize(stream, el);
+    }
+}
+
+template <typename T, typename U>
+void deserialize(std::istream &stream, std::map<T, U> &m) {
+    uint64_t sz;
+    deserialize(stream, sz);
+
+    for (int i=0; i < sz; i++) {
+        std::pair<T, U> p;
+        deserialize(stream, p);
+        m.emplace(p);
     }
 }
 

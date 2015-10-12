@@ -14,6 +14,8 @@
 #include "protocol-interface.h"
 #include "../util/max-size-buffer.h"
 
+class StatusLine;
+
 namespace MSG {
 	/**
 	 * Want to add a message?
@@ -220,6 +222,18 @@ namespace MSG {
 			::deserialize(stream, this->hash);
 			::deserialize(stream, this->children);
 		}
+	};
+
+	struct LogReq : Base {
+		virtual void serialize(std::ostream &stream) const { }
+		virtual void deserialize(std::istream &stream) { }
+	};
+
+	struct LogResp : Base {
+		std::unique_ptr<StatusLine[]> statusLines;
+
+		virtual void serialize(std::ostream &stream) const;
+		virtual void deserialize(std::istream &stream);
 	};
 }
 

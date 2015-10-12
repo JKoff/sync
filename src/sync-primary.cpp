@@ -204,9 +204,9 @@ int main(int argc, char **argv) {
         for (;;) {
             this_thread::sleep_for(chrono::seconds(30));
 
-            // TODO: This won't entirely prevent race conditions.
-            //       That said, copying a file twice will usually be a low-impact
-            //       glitch, and the window should be fairly small.
+            // This won't entirely prevent race conditions.
+            // That said, copying a file twice will usually be a low-impact
+            // glitch, and the window should be fairly small.
             policy.waitUntilEmpty();
             transferProc.xfrCounter.waitUntilZero();
 

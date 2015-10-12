@@ -122,7 +122,7 @@ void SyncServerProcess::syncLoop(State &st) {
             // LOG("Wait complete");
             if (type == MSG::Type::INFO_REQ) {
                 st.statusFn("Got INFO_REQ");
-                // LOG("Got INFO_REQ");
+                LOG("Got INFO_REQ");
 
                 MSG::InfoResp resp;
                 resp.payloads.push_back({
@@ -133,10 +133,12 @@ void SyncServerProcess::syncLoop(State &st) {
                 });
                 st.remote->send(resp);
 
+                LOG("Done servicing INFO_REQ");
+
                 finished = true;
             } else if (type == MSG::Type::DIFF_REQ) {
                 st.statusFn("Got DIFF_REQ");
-                // LOG("Got DIFF_REQ");
+                LOG("Got DIFF_REQ");
 
                 MSG::DiffReq *req = dynamic_cast<MSG::DiffReq*>(msg);
                 MSG::DiffResp resp;
@@ -152,9 +154,11 @@ void SyncServerProcess::syncLoop(State &st) {
                     }
                 }
                 st.remote->send(resp);
+
+                LOG("Done servicing DIFF_REQ");
             } else if (type == MSG::Type::DIFF_COMMIT) {
                 st.statusFn("Got DIFF_COMMIT");
-                // LOG("Got DIFF_COMMIT");
+                LOG("Got DIFF_COMMIT");
 
                 MSG::DiffCommit *req = dynamic_cast<MSG::DiffCommit*>(msg);
                 list<Relpath> deleted = this->index->commit(req->epoch);
@@ -170,7 +174,11 @@ void SyncServerProcess::syncLoop(State &st) {
                 }
 
                 finished = true;
+
+                LOG("Done servicing DIFF_COMMIT");
             } else {
+                finished = true;
+                LOG("Unknown message " << static_cast<int>(type));
                 throw runtime_error("Unknown message.");
             }
         });

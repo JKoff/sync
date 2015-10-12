@@ -71,6 +71,10 @@ StatusLine::~StatusLine() {
 
 void StatusLine::init(const string typeStr, const string identStr) {
 	lock_guard<mutex> lock(logMutex);
+	this->initNoLock(typeStr, identStr);
+}
+
+void StatusLine::initNoLock(const string typeStr, const string identStr) {
 	this->handle = nextHandle++;
 	this->tid = this_thread::get_id();
 	this->typeStr = typeStr;
@@ -114,6 +118,40 @@ void StatusLine::print(ostream &stream) {
 	       << varsStr
 	       << defaultStyle
 	       << endl;
+}
+
+void StatusLine::serialize(std::ostream &stream) const {
+	// Mutex should already be held prior to calling.
+
+	::serialize(stream, this->typeStr);
+	::serialize(stream, this->identStr);
+
+	uint32_t size = this->env.size();
+	::serialize(stream, size);
+	for (const auto &var : this->env) {
+		::serialize(stream, var.first);
+		::serialize(stream, VarToString(this->env, var.second));
+	}
+	::serialize(stream, this->statusStr);
+}
+
+void StatusLine::deserialize(std::istream &stream) {
+	// Mutex should already be held prior to calling.
+
+	string typeStr, identStr;
+	::deserialize(stream, typeStr);
+	::deserialize(stream, identStr);
+	this->initNoLock(typeStr, identStr);
+
+	uint32_t size;
+	::deserialize(stream, size);
+	for (int i=0; i < size; i++) {
+		string key, val;
+		::deserialize(stream, key);
+		::deserialize(stream, val);
+		this->env[key] = Variable{ Type::STRING, Any(val) };
+	}
+	::deserialize(stream, this->statusStr);
 }
 
 void StatusLine::set(string name, StatusLine::String val) {
@@ -229,6 +267,46 @@ void StatusLine::Refresh(ostream &stream) {
 	}
 }
 
+void StatusLine::Serialize(ostream &stream) {
+	lock_guard<mutex> lock(logMutex);
+
+	uint32_t size;
+
+	// static std::map<uint32_t, StatusLine*> inst;
+	size = inst.size();
+	::serialize(stream, size);
+	for (const auto &i : inst) {
+		::serialize(stream, i.second);
+	}
+
+	size = gEnv.size();
+	::serialize(stream, size);
+	for (const auto &var : gEnv) {
+		::serialize(stream, var.first);
+		::serialize(stream, VarToString(gEnv, var.second));
+	}
+}
+
+void StatusLine::Deserialize(istream &stream, unique_ptr<StatusLine[]> &statusLines) {
+	lock_guard<mutex> lock(logMutex);
+
+	uint32_t size;
+
+	::deserialize(stream, size);
+	statusLines = unique_ptr<StatusLine[]>(new StatusLine[size]);
+	for (int i=0; i < size; i++) {
+		::deserialize(stream, statusLines[i]);
+	}
+
+	::deserialize(stream, size);
+	for (int i=0; i < size; i++) {
+		string key, val;
+		::deserialize(stream, key);
+		::deserialize(stream, val);
+		gEnv[key] = Variable{ Type::STRING, Any(val) };
+	}
+}
+
 string StatusLine::VarToString(const StatusLine::Env &env, const StatusLine::Variable &var) {
 	switch (var.type) {
 		case Type::STRING: {
@@ -259,7 +337,7 @@ bool StatusLine::dirtyFlag = false;
 int StatusLine::linesPrinted = 0;
 int StatusLine::nextHandle = 0;
 int StatusLine::ncols = 0;
-map<int, StatusLine*> StatusLine::inst;
+map<uint32_t, StatusLine*> StatusLine::inst;
 StatusLine::Env StatusLine::gEnv;
 
 

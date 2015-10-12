@@ -34,7 +34,9 @@ namespace MSG {
 		FULLSYNC_CMD       = 10,
 		FLUSH_CMD          = 11,
 		INSPECT_REQ        = 12,
-		INSPECT_RESP       = 13
+		INSPECT_RESP       = 13,
+		LOG_REQ            = 14,
+		LOG_RESP           = 15
 	};
 
 	struct Base {

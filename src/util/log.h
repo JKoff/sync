@@ -9,6 +9,7 @@
 #include <string>
 #include <thread>
 #include "any.h"
+#include "serialize.h"
 
 /////////////
 // Logging //
@@ -83,6 +84,7 @@ public:
 	~StatusLine();
 	// Must be called after default constructor is used.
 	void init(const std::string typeStr, const std::string identStr);
+	void initNoLock(const std::string typeStr, const std::string identStr);
 	void update(const std::stringstream &ss);
 
 	void set(std::string name, String val);
@@ -92,6 +94,8 @@ public:
 	void add(std::string name, Int val);
 
 	void print(std::ostream &stream);
+	void serialize(std::ostream &stream) const;
+	void deserialize(std::istream &stream);
 
 	static void Set(std::string name, String val);
 	static void Set(std::string name, Int val);
@@ -102,6 +106,10 @@ public:
 	static void PrintAll(std::ostream &stream);
 	static void ClearAll(std::ostream &stream);
 	static void Refresh(std::ostream &stream);
+	static void Serialize(std::ostream &stream);
+	// statusLines is necessary because each StatusLine must be owned and lifetime must be sufficient
+	// to make it to the PrintAll call.
+	static void Deserialize(std::istream &stream, std::unique_ptr<StatusLine[]> &statusLines);
 private:
 	static std::string VarToString(const Env &env, const Variable &var);
 
@@ -109,10 +117,10 @@ private:
 	static int linesPrinted;
 	static int nextHandle;
 	static int ncols;
-	static std::map<int, StatusLine*> inst;
+	static std::map<uint32_t, StatusLine*> inst;
 	static Env gEnv;
 
-	int handle;
+	uint32_t handle;
 	std::thread::id tid;
 	std::string typeStr, identStr;
 	std::string statusStr;

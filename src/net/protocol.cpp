@@ -1,5 +1,7 @@
 #include "protocol.h"
 
+#include "../util/log.h"
+
 using namespace std;
 
 namespace MSG {
@@ -18,4 +20,13 @@ namespace MSG {
 	static FactoryRecord<FlushCmd> FlushCmd_Recorder(Type::FLUSH_CMD);
 	static FactoryRecord<InspectReq> InspectReq_Recorder(Type::INSPECT_REQ);
 	static FactoryRecord<InspectResp> InspectResp_Recorder(Type::INSPECT_RESP);
+	static FactoryRecord<LogReq> LogReq_Recorder(Type::LOG_REQ);
+	static FactoryRecord<LogResp> LogResp_Recorder(Type::LOG_RESP);
+
+	void LogResp::serialize(ostream &stream) const {
+		StatusLine::Serialize(stream);
+	}
+	void LogResp::deserialize(istream &stream) {
+		StatusLine::Deserialize(stream, this->statusLines);
+	}
 }

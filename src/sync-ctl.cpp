@@ -18,6 +18,7 @@ void usageAndExit(string progname) {
     cout << "    info               Index statistics and information." << endl;
     cout << "    sync               Start a full sync." << endl;
     cout << "    inspect <path>     Inspect a specific entry in the index." << endl;
+    cout << "    status             Retrieve and display the StatusLines. Useful when no tty is attached." << endl;
     exit(0);
 }
 
@@ -70,6 +71,14 @@ int main(int argc, char **argv) {
         for (const auto &child : resp->children) {
             cout << "        " << child.path << " : " << child.hash << endl;
         }
+    } else if (command == "status") {
+        MSG::LogReq msg;
+        client.send(msg);
+
+        unique_ptr<MSG::LogResp> resp = client.awaitWithType<MSG::LogResp>(MSG::Type::LOG_RESP);
+        // As a side-effect, this populates StatusLine
+
+        StatusLine::PrintAll(std::cout);
     } else {
         usageAndExit(argv[0]);
     }

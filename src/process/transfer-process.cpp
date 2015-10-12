@@ -59,6 +59,7 @@ public:
             // Socket retry loop
             for (;;) {
                 try {
+                    statusFn("Connecting");
                     Socket sock = this->host.connect();
 
                     // Transfer retry
@@ -73,6 +74,7 @@ public:
                         } catch (const exception &e) {
                             // Assume it was a failure and requeue it.
                             LOG("TransferWorker: " << e.what());
+                            statusFn(e.what());
                             this->policy->push(this->host, plan.file);
                             throw;
                         }

@@ -1,7 +1,9 @@
 #ifndef UTIL_ANY_H
 #define UTIL_ANY_H
 
+#include <istream>
 #include <memory>
+#include <ostream>
 #include <stdexcept>
 
 /**
