@@ -168,7 +168,10 @@ public:
 		this->sendBuffer(packetStr.data(), packetStr.size());
 	}
 
-	void awaitWithHandler(std::function<void (MSG::Type type, MSG::Base *msg)> handler);
+	void awaitWithHandler(
+		std::function<void (MSG::Type type, MSG::Base *msg)> handler,
+		chrono::duration<uint64_t> timeout=chrono::seconds(60)
+	);
 
 	// Packets can be pretty big——need to be allocated on heap, and can't be copied around.
 	template <typename T>

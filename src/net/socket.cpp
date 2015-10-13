@@ -226,9 +226,12 @@ Socket::~Socket() {
     }
 }
 
-void Socket::awaitWithHandler(std::function<void (MSG::Type type, MSG::Base *msg)> handler) {
+void Socket::awaitWithHandler(
+	std::function<void (MSG::Type type, MSG::Base *msg)> handler,
+	chrono::duration<uint64_t> timeout
+) {
 	// zero means no timeout
-	Frame frame = this->receive(chrono::seconds(0));
+	Frame frame = this->receive(timeout);
 	handler(frame.header.type, frame.message.get());
 }
 
