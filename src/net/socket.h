@@ -170,7 +170,7 @@ public:
 
 	void awaitWithHandler(
 		std::function<void (MSG::Type type, MSG::Base *msg)> handler,
-		chrono::duration<uint64_t> timeout=chrono::seconds(60)
+		chrono::duration<uint64_t> timeout=chrono::seconds(0)
 	);
 
 	// Packets can be pretty big——need to be allocated on heap, and can't be copied around.

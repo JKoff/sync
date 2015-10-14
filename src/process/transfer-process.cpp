@@ -80,6 +80,7 @@ public:
                         }
                     }
                 } catch (const exception &e) {
+                    ERR("TransferWorker error: " << e.what());
                     statusFn(e.what());
 
                     // Network problems probably. Either way, just retry in a bit.

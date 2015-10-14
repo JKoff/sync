@@ -72,7 +72,9 @@ void SyncClientProcess::performFullsync() {
      */
     uint64_t epoch = this->index->hash();
     STATUS(this->status, "Fullsync " << epoch);
-    LOG("Started fullsync.");
+    if (this->verbose) {
+        LOG("Started fullsync.");
+    }
 
 	this->index->diff([this,epoch] (const deque<string>& seen) {
         // Oracle function
@@ -150,7 +152,9 @@ void SyncClientProcess::performFullsync() {
     msg.epoch = epoch;
     this->remote.send(msg);
 
-    LOG("Finished fullsync.");
+    if (this->verbose) {
+        LOG("Finished fullsync.");
+    }
 }
 
 MSG::InfoResp SyncClientProcess::performInfo() {

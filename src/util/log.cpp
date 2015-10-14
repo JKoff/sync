@@ -351,8 +351,8 @@ void logSilent(bool isSilent) {
 	silent = isSilent;
 }
 
-void log(const stringstream &ss, ostream &stream) {
-	if (silent) {
+void log(const stringstream &ss, ostream &stream, bool isUrgent) {
+	if (silent && !isUrgent) {
 		return;
 	}
 

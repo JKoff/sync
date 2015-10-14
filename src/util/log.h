@@ -24,7 +24,7 @@
 #define ERR(x) { \
 	std::stringstream _ss; \
 	_ss << x; \
-	log(_ss, std::cerr); \
+	log(_ss, std::cerr, true); \
 }
 
 void logSilent(bool isSilent);
@@ -32,7 +32,7 @@ void logSilent(bool isSilent);
 // Tags current thread for logging purposes.
 void logTag(std::string tag);
 
-void log(const std::stringstream &ss, std::ostream &stream);
+void log(const std::stringstream &ss, std::ostream &stream, bool isUrgent=false);
 
 void logbuf(const void *buf, size_t len, std::ostream &stream);
 
