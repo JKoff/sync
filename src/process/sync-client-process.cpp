@@ -41,15 +41,8 @@ SyncClientProcess::SyncClientProcess(
 /////////////////////////////////////////
 
 void SyncClientProcess::main() {
-    STATUS(this->status, "Connecting");
-
-    this->remote = this->host.connect();
-
     for (;;) {
-        STATUS(this->status, "Establishing session");
-        this->remote.send(MSG::SyncEstablishReq());
-
-        STATUS(this->status, "Established");
+        STATUS(this->status, "Idle");
         Message msg = this->peek();
         switch (msg.type) {
         case MT::FULLSYNC:
@@ -76,7 +69,9 @@ void SyncClientProcess::performFullsync() {
         LOG("Started fullsync.");
     }
 
-	this->index->diff([this,epoch] (const deque<string>& seen) {
+    Socket remote = this->connect();
+
+	this->index->diff([this,epoch,&remote] (const deque<string>& seen) {
         // Oracle function
         deque<string> result;
 
@@ -108,13 +103,13 @@ void SyncClientProcess::performFullsync() {
             if (req.queries.size() == MSG::DiffReq::MAX_RECORDS) {
                 queryCtr += req.queries.size();
                 StatusLine::Add("client queries", req.queries.size());
-                this->remote.send(req);
+                remote.send(req);
                 
                 req.queries.clear();
 
                 updateStats("<--");
 
-                resp = this->remote.awaitWithType<MSG::DiffResp>(MSG::Type::DIFF_RESP);
+                resp = remote.awaitWithType<MSG::DiffResp>(MSG::Type::DIFF_RESP);
                 for (const auto &answer : resp->answers) {
                     result.push_back(answer.path);
                 }
@@ -128,9 +123,9 @@ void SyncClientProcess::performFullsync() {
         if (req.queries.size() > 0) {
             queryCtr += req.queries.size();
             StatusLine::Add("client queries", req.queries.size());
-            this->remote.send(req);
+            remote.send(req);
 
-            resp = this->remote.awaitWithType<MSG::DiffResp>(MSG::Type::DIFF_RESP);
+            resp = remote.awaitWithType<MSG::DiffResp>(MSG::Type::DIFF_RESP);
             for (const auto &answer : resp->answers) {
                 result.push_back(answer.path);
             }
@@ -150,7 +145,7 @@ void SyncClientProcess::performFullsync() {
 
     MSG::DiffCommit msg;
     msg.epoch = epoch;
-    this->remote.send(msg);
+    remote.send(msg);
 
     if (this->verbose) {
         LOG("Finished fullsync.");
@@ -158,9 +153,25 @@ void SyncClientProcess::performFullsync() {
 }
 
 MSG::InfoResp SyncClientProcess::performInfo() {
+    Socket remote = this->connect();
+
     MSG::InfoReq msg;
-    this->remote.send(msg);
-    return *this->remote.awaitWithType<MSG::InfoResp>(MSG::Type::INFO_RESP).release();
+    remote.send(msg);
+
+    MSG::InfoResp resp = *(remote.awaitWithType<MSG::InfoResp>(MSG::Type::INFO_RESP).release());
+
+    return resp;
+}
+
+Socket SyncClientProcess::connect() {
+    STATUS(this->status, "Connecting");
+    Socket remote = this->host.connect();
+
+    STATUS(this->status, "Establishing session");
+    remote.send(MSG::SyncEstablishReq());
+
+    STATUS(this->status, "Established");
+    return remote;
 }
 
 ///////////////////////////////////////

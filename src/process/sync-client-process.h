@@ -7,12 +7,13 @@
 #include <thread>
 #include "../index.h"
 #include "../util.h"
-#include "../net/inet-client.h"
 #include "../net/protocol.h"
 #include "../util/log.h"
 #include "./transfer-process.h"
 
 #include "process.h"
+
+class Socket;
 
 enum class SyncClientProcessMessageType {
 	FULLSYNC,
@@ -35,10 +36,10 @@ private:
 	void main();
 	void performFullsync();
 	MSG::InfoResp performInfo();
+	Socket connect();
 
 	PolicyHost host;
 	Index *index;
-	Socket remote;
 	TransferProcess *transferProc;
 	StatusLine status;
 	bool verbose;

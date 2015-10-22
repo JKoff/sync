@@ -39,8 +39,10 @@ void SyncServerProcess::main() {
     InetServer srv(this->host, this->port, [this] (Socket &remote) {
         StatusLine statusLine("SyncServerProcess worker");
 
+        bool notDone = true;
+
         try {
-            for (;;) {
+            while (notDone) {
                 State st;
                 st.mode = ConnType::NEW;
                 st.remote = &remote;
@@ -60,6 +62,13 @@ void SyncServerProcess::main() {
                         modeStr = "XFR";
                         break;
                     }
+                    // LOG(
+                    //     "[del=" << st.deleted <<
+                    //     ", filesIn=" << st.receivedFiles <<
+                    //     ", dirsIn=" << st.receivedDirs << "]  " <<
+                    //     modeStr << " | " <<
+                    //     str
+                    // );
                     STATUS(
                         statusLine,
                         "[del=" << st.deleted <<
@@ -100,19 +109,20 @@ void SyncServerProcess::main() {
                 st.statusFn("Established");
 
                 switch (st.mode) {
-                case ConnType::SYNC: this->syncLoop(st); break;
-                case ConnType::XFR: this->xfrLoop(st); break;
+                case ConnType::SYNC: notDone = this->syncLoop(st); break;
+                case ConnType::XFR: notDone = this->xfrLoop(st); break;
                 default: throw runtime_error("Connection in bad state.");
                 }
             }
         } catch (const exception &e) {
             // Probably a network error. Peer disconnected, etc.
+            // For now, not worth mentioning since it happens under normal conditions.
             ERR("SyncServerProcess worker thread exception: " << e.what());
         }
     });
 }
 
-void SyncServerProcess::syncLoop(State &st) {
+bool SyncServerProcess::syncLoop(State &st) {
     st.statusFn("Waiting...");
 
     bool finished = false;
@@ -172,6 +182,8 @@ void SyncServerProcess::syncLoop(State &st) {
             }
         });
     }
+
+    return false;
 }
 
 void SyncServerProcess::receiveFile(State &st) {
@@ -212,7 +224,7 @@ void SyncServerProcess::removeFile(const string &path) {
     }
 }
 
-void SyncServerProcess::xfrLoop(State &st) {
+bool SyncServerProcess::xfrLoop(State &st) {
     switch (st.xfrType) {
     case FileRecord::Type::DIRECTORY:
         // TODO: Setting world-readable isn't necessarily what we need.
@@ -238,4 +250,6 @@ void SyncServerProcess::xfrLoop(State &st) {
     scanSingle(st.xfrPath, [this] (const FileRecord &rec) {
         this->index->update(rec);
     });
+
+    return true;
 }

@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "../net/persistent-socket.h"
 #include "../util/log.h"
 
 using namespace std;
@@ -19,6 +20,11 @@ typedef struct {
     PolicyHost host;
     PolicyFile file;
 } TransferMsgPayload;
+
+
+//////////////////////////
+// TransferCounterGuard //
+//////////////////////////
 
 /**
     RAII-style mechanism for transiently incrementing a TransferCounter.
@@ -36,6 +42,12 @@ public:
 private:
     TransferCounter &parent;
 };
+
+
+
+////////////////////
+// TransferWorker //
+////////////////////
 
 class TransferWorker {
 public:
@@ -56,40 +68,33 @@ public:
                 STATUSVAR(status, "remaining", stats.remaining);
             };
 
-            // Socket retry loop
+            PersistentSocket sock([this] () {
+                return this->host.connect();
+            });
+
+            // Transfer loop
             for (;;) {
+                statusFn("Idle");
+                PolicyPlan plan = this->policy->pop(this->host);
+                TransferCounterGuard xfrCounterGuard(xfrCounter);
+
                 try {
-                    statusFn("Connecting");
-                    Socket sock = this->host.connect();
-
-                    // Transfer retry
-                    for (;;) {
-                        statusFn("Idle");
-                        PolicyPlan plan = this->policy->pop(this->host);
-                        TransferCounterGuard xfrCounterGuard(xfrCounter);
-
-                        try {
-                            statusFn("Transferring");
-                            this->transfer(plan, sock);
-                        } catch (const exception &e) {
-                            // Assume it was a failure and requeue it.
-                            LOG("TransferWorker: " << e.what());
-                            statusFn(e.what());
-                            this->policy->push(this->host, plan.file);
-                            throw;
-                        }
-                    }
+                    statusFn("Transferring");
+                    this->transfer(plan, sock);
                 } catch (const exception &e) {
-                    ERR("TransferWorker error: " << e.what());
+                    // Assume it was a failure and requeue it.
+                    LOG("TransferWorker: " << e.what());
                     statusFn(e.what());
+                    this->policy->push(this->host, plan.file);
 
-                    // Network problems probably. Either way, just retry in a bit.
+                    // Just in case error is transient and network-related.
+                    // Wouldn't want a tight loop causing more problems.
                     this_thread::sleep_for(chrono::seconds(2));
                 }
             }
         });
     }
-    void transfer(const PolicyPlan &plan, const Socket &hostSock) {
+    void transfer(const PolicyPlan &plan, PersistentSocket &hostSock) {
         assert(plan.steps.value == this->host);
 
         MSG::XfrEstablishReq req;

@@ -10,10 +10,10 @@
 #include <thread>
 #include "../util/any.h"
 
-class timeout_error : public runtime_error {
+class timeout_error : public std::runtime_error {
 public:
-    explicit timeout_error(const string &str) : runtime_error(str) { }
-    explicit timeout_error(const char *str) : runtime_error(str) { }
+    explicit timeout_error(const std::string &str) : std::runtime_error(str) { }
+    explicit timeout_error(const char *str) : std::runtime_error(str) { }
 };
 
 template <typename MessageType>
@@ -47,11 +47,11 @@ protected:
 	void cast(Process::Message &msg) {
 		std::lock_guard<std::mutex> lock(this->m);
 		msg.refid = this->refid++;
-		this->messages.push(move(msg));
+		this->messages.push(std::move(msg));
 		this->messageCv.notify_one();
 	}
 
-	Any call(Process::Message &msg, chrono::duration<uint64_t> timeout) {
+	Any call(Process::Message &msg, std::chrono::duration<uint64_t> timeout) {
 		this->cast(msg);
 
 		std::unique_lock<std::mutex> lock(this->m);
@@ -63,7 +63,7 @@ protected:
 			throw timeout_error("Call did not receive a response in time.");
 		}
 
-		Any result = move(this->replies.at(msg.refid));
+		Any result = std::move(this->replies.at(msg.refid));
 		this->replies.erase(msg.refid);
 
 		return result;
@@ -78,23 +78,37 @@ protected:
 	 * followed by a consume() on success.
 	 */
 	
-	Message peek() {
+	Message peek(std::chrono::duration<uint64_t> timeout=std::chrono::duration<uint64_t>::max()) {
 		std::unique_lock<std::mutex> lock(this->m);
-		this->messageCv.wait(lock, [this] { return !this->messages.empty(); });
-		return move(this->messages.front());
+
+		if (timeout == std::chrono::duration<uint64_t>::max()) {
+			this->messageCv.wait(lock, [this] {
+				return !this->messages.empty();
+			});
+		} else {
+			bool status = this->messageCv.wait_for(lock, timeout, [this] {
+				return !this->messages.empty();
+			});
+
+			if (!status) {
+				throw timeout_error("Peek did not receive a response in time.");
+			}
+		}
+
+		return std::move(this->messages.front());
 	}
 
 	Message consume() {
 		std::unique_lock<std::mutex> lock(this->m);
 		this->messageCv.wait(lock, [this] { return !this->messages.empty(); });
-		Message result = move(this->messages.front());
+		Message result = std::move(this->messages.front());
 		this->messages.pop();
 		return result;
 	}
 
 	void reply(uint64_t refid, Any value) {
 		std::lock_guard<std::mutex> lock(this->m);
-		this->replies[refid] = move(value);
+		this->replies[refid] = std::move(value);
 		this->replyCv.notify_all();
 	}
 	

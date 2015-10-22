@@ -55,8 +55,8 @@ private:
 	// Implementation fns (managed thread) //
 	/////////////////////////////////////////
 	void main();
-	void syncLoop(State &st);
-	void xfrLoop(State &st);
+	bool syncLoop(State &st);
+	bool xfrLoop(State &st);
 
 	// Helpers
 	void receiveFile(State &st);
