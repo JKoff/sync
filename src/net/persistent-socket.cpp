@@ -12,7 +12,6 @@ PersistentSocket::PersistentSocket(function<Socket ()> constructorFn) {
         bool isBorrowed = false;
         // If we haven't used the socket in `expiry` seconds, close it.
         chrono::duration<uint64_t> expiry = chrono::seconds(10);
-        chrono::duration<uint64_t> noExpiry = chrono::seconds(0);
         unique_ptr<Socket> managedSocket;
 
         StatusLine status("PersistentSocket");
@@ -61,10 +60,13 @@ PersistentSocket::PersistentSocket(function<Socket ()> constructorFn) {
                     // At this point, we either have no managed socket, or a non-expired socket.
                     // Non-expired under the assumption that there was no significant gap between
                     // socket return and execution of this line.
-                    msg = this->peek(managedSocket ?
-                        expiry : // socket exists, need to time it out at some point
-                        noExpiry  // no socket, can block indefinitely
-                    );
+                    if (managedSocket) {
+                        // socket exists, need to time it out at some point
+                        msg = this->peek(expiry);
+                    } else {
+                        // no socket, can block indefinitely
+                        msg = this->peek();
+                    }
                     messageFn(msg);
                 } catch (const timeout_error &e) {
                     // Our socket expired before we received a further attempt to borrow it.
