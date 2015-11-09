@@ -44,11 +44,9 @@ class PersistentSocket : public Process<PersistentSocketMessageType> {
 	        }
 	    }
 	    ~PerformWithBorrowedSocket() {
-	        if (this->sock) {
-	            Message msg;
-	            msg.type = MT::RETURN_SOCKET;
-	            that->cast(msg);
-	        }
+            Message msg;
+	        msg.type = MT::RETURN_SOCKET;
+            that->cast(msg);
 	    }
 
 	private:

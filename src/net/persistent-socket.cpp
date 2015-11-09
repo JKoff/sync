@@ -36,22 +36,28 @@ PersistentSocket::PersistentSocket(function<Socket ()> constructorFn) {
             STATUSVAR(status, "managedSocket", (managedSocket ? "true" : "false"));
         };
 
-        for (;;) {
+        bool terminated = false;
+
+        while (!terminated) {
             if (isBorrowed) {
                 // We'll never expire a borrowed socket. A borrowed socket MUST get returned.
                 Message msg = this->consume();
                 messageFn(msg);
-                if (msg.type == MT::TERMINATE) {
+                switch (msg.type) {
+                case MT::TERMINATE:
+                    terminated = true;
                     break;
-                } else if (msg.type == MT::INVALIDATE_SOCKET) {
+                case MT::INVALIDATE_SOCKET:
                     // Never use it again. We still expect a RETURN_SOCKET after this.
                     managedSocket.reset();
                     messageFn(msg);
-                } else if (msg.type == MT::RETURN_SOCKET) {
+                    break;
+                case MT::RETURN_SOCKET:
                     isBorrowed = false;
                     messageFn(msg);
-                } else {
-                    assert(false && "Invalid message type.");
+                    break;
+                case MT::BORROW_SOCKET:
+                    assert(false && "Unexpected message type, BORROW_SOCKET.");
                 }
             } else {
                 Message msg;
@@ -78,6 +84,13 @@ PersistentSocket::PersistentSocket(function<Socket ()> constructorFn) {
 
                 if (msg.type == MT::TERMINATE) {
                     break;
+                }
+
+                if (msg.type == MT::RETURN_SOCKET) {
+                    // Maybe initialization of the socket failed and we're in the destructor.
+                    managedSocket.reset();
+                    messageFn(msg);
+                    continue;
                 }
 
                 assert(msg.type == MT::BORROW_SOCKET);
