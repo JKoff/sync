@@ -41,7 +41,7 @@ PersistentSocket::PersistentSocket(function<Socket ()> constructorFn) {
         while (!terminated) {
             if (isBorrowed) {
                 // We'll never expire a borrowed socket. A borrowed socket MUST get returned.
-                Message msg = this->consume();
+                Message msg = this->peek();
                 messageFn(msg);
                 switch (msg.type) {
                 case MT::TERMINATE:
@@ -57,8 +57,13 @@ PersistentSocket::PersistentSocket(function<Socket ()> constructorFn) {
                     messageFn(msg);
                     break;
                 case MT::BORROW_SOCKET:
-                    assert(false && "Unexpected message type, BORROW_SOCKET.");
+                    // TODO: I'm at a loss as to why this case occurs.
+                    isBorrowed = false;
+                    messageFn(msg);
+                    // Give it another try with isBorrowed reset.
+                    continue;
                 }
+                this->consume();
             } else {
                 Message msg;
 
