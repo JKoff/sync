@@ -144,9 +144,11 @@ public:
 	Socket();
 	Socket(const Socket &other) = delete;
 	Socket(Socket &&other) {
-		swap(this->sock, other.sock);
-		swap(this->buf, other.buf);
-		swap(this->buf2, other.buf2);
+		this->sock = other.sock;
+		other.sock = 0;
+
+		this->buf = move(other.buf);
+		this->buf2 = move(other.buf2);
 	}
 	Socket& operator=(const Socket &other) = delete;
 	Socket& operator=(Socket &&other) {
