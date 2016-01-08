@@ -40,7 +40,6 @@ static string threadStyles[] = {
 
 static string erase = "\033[F";
 static string up = "\033[J";
-static string down = "\033[K";
 
 string tagForThreadId(thread::id tid) {
 	if (threadIds.find(tid) == threadIds.end()) {
@@ -222,10 +221,22 @@ void StatusLine::Add(string name, StatusLine::Int val) {
 	}
 }
 
+void StatusLine::Log(const string &line) {
+	logLines.push_back(line);
+	while (logLines.size() > 100) {
+		logLines.pop_front();
+	}
+}
+
 void StatusLine::PrintAll(ostream &stream) {
 	// Mutex should already be held prior to calling.
 
 	linesPrinted = 0;
+
+	for (const auto &line : logLines) {
+		stream << line << endl;
+		++linesPrinted;
+	}
 
 	stream << string(ncols, '-') << endl;
 	++linesPrinted;
@@ -248,9 +259,10 @@ void StatusLine::PrintAll(ostream &stream) {
 void StatusLine::ClearAll(ostream &stream) {
 	// Mutex should already be held prior to calling.
 
-	for (int i=0; i < linesPrinted; i++) {
-		stream << erase << up;
-	}
+	// for (int i=0; i < linesPrinted; i++) {
+		// stream << "\033[2K";
+	// }
+	stream << "\033[1J";
 }
 
 void StatusLine::Refresh(ostream &stream) {
@@ -338,6 +350,7 @@ int StatusLine::linesPrinted = 0;
 int StatusLine::nextHandle = 0;
 int StatusLine::ncols = 0;
 map<uint32_t, StatusLine*> StatusLine::inst;
+deque<string> StatusLine::logLines;
 StatusLine::Env StatusLine::gEnv;
 
 
@@ -367,12 +380,18 @@ void log(const stringstream &ss, ostream &stream, bool isUrgent) {
 	thread::id tid = this_thread::get_id();
 	string tag = tagForThreadId(tid);
 
-	stream << (isTty ? threadStyles[(threadIds[tid] - 1) % 9] : "")
-	       << ts
-	       << "{" << tag << "t" << threadIds[tid] << "}  "
-	       << ss.str()
-	       << (isTty ? defaultStyle : "")
-	       << endl;
+	stringstream outss;
+	outss << (isTty ? threadStyles[(threadIds[tid] - 1) % 9] : "")
+	   << ts
+	   << "{" << tag << "t" << threadIds[tid] << "}  "
+	   << ss.str()
+	   << (isTty ? defaultStyle : "");
+
+	if (isTty) {
+		StatusLine::Log(outss.str());
+	} else {
+		stream << outss.str() << endl;
+	}
 
 	if (isTty) {
 		StatusLine::PrintAll(stream);

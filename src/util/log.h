@@ -1,6 +1,7 @@
 #ifndef UTIL_LOG_H
 #define UTIL_LOG_H
 
+#include <deque>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -105,6 +106,7 @@ public:
 	static void Set(std::string name, IntFn val);
 	static void Add(std::string name, Int val);
 
+	static void Log(const std::string &line);
 	static void PrintAll(std::ostream &stream);
 	static void ClearAll(std::ostream &stream);
 	static void Refresh(std::ostream &stream);
@@ -120,6 +122,7 @@ private:
 	static int nextHandle;
 	static int ncols;
 	static std::map<uint32_t, StatusLine*> inst;
+	static std::deque<std::string> logLines;
 	static Env gEnv;
 
 	uint32_t handle;
