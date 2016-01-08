@@ -217,22 +217,6 @@ SocketCrypto Socket::socketCrypto;
 
 Socket::Socket()
 : sock(0), buf(new char[this->BUF_SIZE]), buf2(new char[this->BUF_SIZE]) {
-	int optval = 1;
-	setsockopt(this->sock, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
-
-#ifdef SOL_TCP
-	// Linux
-	optval = 3;
-	setsockopt(this->sock, SOL_TCP, TCP_KEEPCNT, &optval, sizeof(optval));
-	optval = 60;
-	setsockopt(this->sock, SOL_TCP, TCP_KEEPIDLE, &optval, sizeof(optval));
-	optval = 30;
-	setsockopt(this->sock, SOL_TCP, TCP_KEEPINTVL, &optval, sizeof(optval));
-#else
-	// OS X
-	optval = 30;
-	setsockopt(this->sock, SOL_SOCKET, TCP_KEEPALIVE, &optval, sizeof(optval));
-#endif
 }
 
 Socket::~Socket() {
