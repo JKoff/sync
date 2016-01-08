@@ -7,3 +7,4 @@ lib/*
 sync-primary
 sync-ctl
 sync-replica
+*.dSym
