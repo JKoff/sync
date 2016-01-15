@@ -47,68 +47,74 @@ CommandProcess::CommandProcess(
 
 void CommandProcess::main() {
     UnixServer srv(this->instanceId, [this] (Socket &remote) {
-        StatusLine statusLine("Command worker");
-        STATUS(statusLine, "Awaiting...");
+        try {
+            StatusLine statusLine("Command worker");
+            STATUS(statusLine, "Awaiting...");
 
-        remote.awaitWithHandler([this, &statusLine, &remote] (MSG::Type type, MSG::Base *msg) {
-            // We do not have ownership over msg. It is merely borrowed.
+            remote.awaitWithHandler([this, &statusLine, &remote] (MSG::Type type, MSG::Base *msg) {
+                // We do not have ownership over msg. It is merely borrowed.
 
-            if (type == MSG::Type::INFO_REQ) {
-                STATUS(statusLine, "Got INFO_REQ");
+                if (type == MSG::Type::INFO_REQ) {
+                    STATUS(statusLine, "Got INFO_REQ");
 
-                MSG::InfoResp resp;
-                resp.payloads.push_back({
-                    this->instanceId, "reachable", this->index->size(), this->index->hash()
-                });
+                    MSG::InfoResp resp;
+                    resp.payloads.push_back({
+                        this->instanceId, "reachable", this->index->size(), this->index->hash()
+                    });
 
-                for (auto &replica : *(this->syncThreads)) {
-                    try {
-                        MSG::InfoResp remoteResp = replica->callInfo();
-                        for (const auto &payload : remoteResp.payloads) {
-                            resp.payloads.push_back(payload);
+                    for (auto &replica : *(this->syncThreads)) {
+                        try {
+                            MSG::InfoResp remoteResp = replica->callInfo();
+                            for (const auto &payload : remoteResp.payloads) {
+                                resp.payloads.push_back(payload);
+                            }
+                        } catch (timeout_error e) {
+                            resp.payloads.push_back({ "", "DOWN", 0, 0 });
                         }
-                    } catch (timeout_error e) {
-                        resp.payloads.push_back({ "", "DOWN", 0, 0 });
                     }
+
+                    remote.send(resp);
+                } else if (type == MSG::Type::FULLSYNC_CMD) {
+                    STATUS(statusLine, "Got FULLSYNC_CMD");
+                    LOG("Starting fullsync.");
+
+                    for (auto &replica : *(this->syncThreads)) {
+                        replica->castFullsync();
+                    }
+                } else if (type == MSG::Type::FLUSH_CMD) {
+                    STATUS(statusLine, "Got FLUSH_CMD");
+                    LOG("Flushing.");
+
+                    // TODO
+                } else if (type == MSG::Type::INSPECT_REQ) {
+                    STATUS(statusLine, "Got INSPECT_CMD");
+
+                    MSG::InspectReq *req = dynamic_cast<MSG::InspectReq*>(msg);
+
+                    MSG::InspectResp resp;
+                    resp.path = req->path;
+                    resp.hash = this->index->hash(req->path);
+
+                    set<string> children = this->index->children(req->path);
+                    for (const string &child : children) {
+                        resp.children.push_back({ child, this->index->hash(child) });
+                    }
+
+                    remote.send(resp);
+                } else if (type == MSG::Type::LOG_REQ) {
+                    STATUS(statusLine, "Got LOG_REQ");
+
+                    MSG::LogResp resp;
+                    remote.send(resp);
+                } else {
+                    // Ignore.
+                    ERR("CommandProcess received bad message. Type: " << (int)msg->type);
                 }
-
-                remote.send(resp);
-            } else if (type == MSG::Type::FULLSYNC_CMD) {
-                STATUS(statusLine, "Got FULLSYNC_CMD");
-                LOG("Starting fullsync.");
-
-                for (auto &replica : *(this->syncThreads)) {
-                    replica->castFullsync();
-                }
-            } else if (type == MSG::Type::FLUSH_CMD) {
-                STATUS(statusLine, "Got FLUSH_CMD");
-                LOG("Flushing.");
-
-                // TODO
-            } else if (type == MSG::Type::INSPECT_REQ) {
-                STATUS(statusLine, "Got INSPECT_CMD");
-
-                MSG::InspectReq *req = dynamic_cast<MSG::InspectReq*>(msg);
-
-                MSG::InspectResp resp;
-                resp.path = req->path;
-                resp.hash = this->index->hash(req->path);
-
-                set<string> children = this->index->children(req->path);
-                for (const string &child : children) {
-                    resp.children.push_back({ child, this->index->hash(child) });
-                }
-
-                remote.send(resp);
-            } else if (type == MSG::Type::LOG_REQ) {
-                STATUS(statusLine, "Got LOG_REQ");
-
-                MSG::LogResp resp;
-                remote.send(resp);
-            } else {
-                // Ignore.
-                ERR("CommandProcess received bad message. Type: " << (int)msg->type);
-            }
-        });
+            });
+        } catch (const exception &e) {
+            // Under no circumstance should a secondary process such as this one
+            // interrupt execution of the program.
+            ERR("Command thread worker: " << e.what());
+        }
     });
 }
