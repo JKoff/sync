@@ -104,7 +104,7 @@ void SyncServerProcess::main() {
                     } else {
                         throw runtime_error("Expected establish message in SyncServerProcess session.");
                     }
-                });
+                }, chrono::seconds(3));
 
                 st.statusFn("Established");
 
@@ -180,7 +180,7 @@ bool SyncServerProcess::syncLoop(State &st) {
                 ERR("Unknown message " << static_cast<int>(type));
                 throw runtime_error("Unknown message.");
             }
-        });
+        }, chrono::seconds(0));
     }
 
     return false;

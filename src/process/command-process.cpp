@@ -110,7 +110,7 @@ void CommandProcess::main() {
                     // Ignore.
                     ERR("CommandProcess received bad message. Type: " << (int)msg->type);
                 }
-            });
+            }, chrono::seconds(3));
         } catch (const exception &e) {
             // Under no circumstance should a secondary process such as this one
             // interrupt execution of the program.
