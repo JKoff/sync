@@ -1,18 +1,20 @@
 #include "socket.h"
 
+#include <snappy.h>
+#include <openssl/conf.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+#include <openssl/crypto.h>
+
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <netinet/tcp.h>
 #include <system_error>
-#include "snappy/snappy.h"
-#include "../util/log.h"
 #include <stdio.h>
 
-#include <openssl/conf.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/rand.h>
+#include "../util/log.h"
 
 using namespace std;
 
@@ -23,9 +25,7 @@ using namespace std;
 
 class CipherCtx {
 public:
-	CipherCtx() {
-		EVP_CIPHER_CTX_init(&(this->ctx));
-	}
+	CipherCtx() : ctx(EVP_CIPHER_CTX_new()) { }
 
 	void printError() {
 		char buf[120];
@@ -38,12 +38,12 @@ public:
 	}
 
 	void initEncrypt(const unsigned char *key, const unsigned char *iv) {
-		if (1 != EVP_EncryptInit_ex(&(this->ctx), EVP_aes_256_gcm(), NULL, NULL, NULL)) {
+		if (1 != EVP_EncryptInit_ex(this->ctx, EVP_aes_256_gcm(), NULL, NULL, NULL)) {
 			this->printError();
 			throw runtime_error("Failed to initialize encryption operation.");
 		}
 
-		if (1 != EVP_EncryptInit_ex(&(this->ctx), NULL, NULL, key, iv)) {
+		if (1 != EVP_EncryptInit_ex(this->ctx, NULL, NULL, key, iv)) {
 			this->printError();
 			throw runtime_error("Failed to initialize encryption key and IV.");
 		}
@@ -52,7 +52,7 @@ public:
 	int encrypt(const unsigned char *plaintext, int plaintext_len, unsigned char *ciphertext) {
 		int len, ciphertext_len;
 
-		if (1 != EVP_EncryptUpdate(&(this->ctx), ciphertext, &len, plaintext, plaintext_len)) {
+		if (1 != EVP_EncryptUpdate(this->ctx, ciphertext, &len, plaintext, plaintext_len)) {
 			this->printError();
 			throw runtime_error("Failed to encrypt.");
 		}
@@ -60,7 +60,7 @@ public:
 		// LOG("len was " << len << " for plaintext_len = " << plaintext_len);
 		// return 0;
 
-		if (1 != EVP_EncryptFinal_ex(&(this->ctx), ciphertext + len, &len)) {
+		if (1 != EVP_EncryptFinal_ex(this->ctx, ciphertext + len, &len)) {
 			this->printError();
 			throw runtime_error("Failed to finalize encryption.");
 		}
@@ -70,7 +70,7 @@ public:
 	}
 
 	void tag(unsigned char *tag) {
-		if (1 != EVP_CIPHER_CTX_ctrl(&(this->ctx), EVP_CTRL_GCM_GET_TAG, TAG_SIZE, tag)) {
+		if (1 != EVP_CIPHER_CTX_ctrl(this->ctx, EVP_CTRL_GCM_GET_TAG, TAG_SIZE, tag)) {
 			this->printError();
 			throw runtime_error("Failed to get encryption tag.");
 		}
@@ -84,12 +84,12 @@ public:
 	}
 
 	void initDecrypt(const unsigned char *key, const unsigned char *iv) {
-		if (1 != EVP_DecryptInit_ex(&(this->ctx), EVP_aes_256_gcm(), NULL, NULL, NULL)) {
+		if (1 != EVP_DecryptInit_ex(this->ctx, EVP_aes_256_gcm(), NULL, NULL, NULL)) {
 			this->printError();
 			throw runtime_error("Failed to initialize decryption operation.");
 		}
 
-		if (1 != EVP_DecryptInit_ex(&(this->ctx), NULL, NULL, key, iv)) {
+		if (1 != EVP_DecryptInit_ex(this->ctx, NULL, NULL, key, iv)) {
 			this->printError();
 			throw runtime_error("Failed to initialize decryption key and IV.");
 		}
@@ -98,18 +98,18 @@ public:
 	int decrypt(const unsigned char *ciphertext, int ciphertext_len, const unsigned char *tag, unsigned char *plaintext) {
 		int len, plaintext_len;
 
-		if (1 != EVP_DecryptUpdate(&(this->ctx), plaintext, &len, ciphertext, ciphertext_len)) {
+		if (1 != EVP_DecryptUpdate(this->ctx, plaintext, &len, ciphertext, ciphertext_len)) {
 			this->printError();
 			throw runtime_error("Failed to decrypt.");
 		}
 		plaintext_len = len;
 
-		if (1 != EVP_CIPHER_CTX_ctrl(&(this->ctx), EVP_CTRL_GCM_SET_TAG, TAG_SIZE, const_cast<unsigned char*>(tag))) {
+		if (1 != EVP_CIPHER_CTX_ctrl(this->ctx, EVP_CTRL_GCM_SET_TAG, TAG_SIZE, const_cast<unsigned char*>(tag))) {
 			this->printError();
 			throw runtime_error("Failed to set decryption tag.");
 		}
 
-		if (1 != EVP_DecryptFinal_ex(&(this->ctx), plaintext + len, &len)) {
+		if (1 != EVP_DecryptFinal_ex(this->ctx, plaintext + len, &len)) {
 			this->printError();
 			throw runtime_error("Failed to finalize decryption.");
 		}
@@ -119,11 +119,11 @@ public:
 	}
 
 	~CipherCtx() {
-		EVP_CIPHER_CTX_cleanup(&(this->ctx));
+		EVP_CIPHER_CTX_free(this->ctx);
 	}
 
 private:
-	EVP_CIPHER_CTX ctx;
+	EVP_CIPHER_CTX* ctx;
 };
 
 
@@ -132,9 +132,7 @@ private:
 //////////////////
 
 SocketCrypto::SocketCrypto() {
-	ERR_load_crypto_strings();
-	OpenSSL_add_all_algorithms();
-	OPENSSL_config(NULL);
+	OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, NULL);
 
 	// A (key, IV) pair must be unique.
 	// In order to avoid using extreme amounts of entropy, we seed with a random 12-byte number

@@ -102,38 +102,34 @@ public:
         hostSock.send(req);
 
         if (plan.file.type == FileRecord::Type::FILE) {
-            try {
-                ifstream f(this->root + req.plan.file.path, ifstream::binary);
-                f.exceptions(ifstream::failbit);
-                if (f.fail()) {
-                    ERR("Failed to open file " << req.plan.file.path);
-                }
-
-                // If this resize is changed to a reserve, the contents of the buffer are sometimes
-                // zero after the read. I don't understand why.
-                this->block.data.resize(MSG::XfrBlock::MAX_SIZE);
-
-                do {
-                    f.read((char*)this->block.data.data(), MSG::XfrBlock::MAX_SIZE);
-                    this->block.data.resize(f.gcount());
-                    hostSock.send(this->block);
-                    StatusLine::Add("essentialOut", this->block.data.size());
-                } while (f.good());
-
-                // If file is already empty, closing protocol is already satisfied.
-                if (this->block.data.size() == MSG::XfrBlock::MAX_SIZE) {
-                    this->block.data.resize(0);
-                    hostSock.send(this->block);
-                }
-
-                StatusLine::Add("filesOut", 1);
-            } catch (const std::ios_base::failure& e) {
+            ifstream f(this->root + req.plan.file.path, ifstream::binary);
+            if (f.fail()) {
                 StatusLine::Add("fileReadErr", 1);
-
-                stringstream ss;
-                ss << "Error reading file " << req.plan.file.path << ": " << strerror(errno);
-                throw runtime_error(ss.str());
+                throw runtime_error("Failed to open file " + req.plan.file.path);
             }
+
+            // If this resize is changed to a reserve, the contents of the buffer are sometimes
+            // zero after the read. I don't understand why.
+            this->block.data.resize(MSG::XfrBlock::MAX_SIZE);
+
+            do {
+                f.read((char*)this->block.data.data(), MSG::XfrBlock::MAX_SIZE);
+                if (f.bad()) {
+                    StatusLine::Add("fileReadErr", 1);
+                    throw runtime_error("File is now in 'bad' state " + req.plan.file.path);
+                }
+                this->block.data.resize(f.gcount());
+                hostSock.send(this->block);
+                StatusLine::Add("essentialOut", this->block.data.size());
+            } while (f.good());
+
+            // If file is already empty, closing protocol is already satisfied.
+            if (this->block.data.size() == MSG::XfrBlock::MAX_SIZE) {
+                this->block.data.resize(0);
+                hostSock.send(this->block);
+            }
+
+            StatusLine::Add("filesOut", 1);
         }
     }
 private:

@@ -188,6 +188,7 @@ int main(int argc, char **argv) {
         StatusLine statusLine("Watcher");
         STATUS(statusLine, "Watching filesystem...");
         Watcher watcher(ROOT, updateSingleFn);
+        watcher.wait();
     });
 
     thread fullscanThread([ROOT, &index, &filterFn, &updateFn] () {

@@ -1,23 +1,43 @@
 #ifndef FS_WATCHER_H
 #define FS_WATCHER_H
 
+#include <atomic>
+#include <condition_variable>
 #include <functional>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
-#include "fswatch/monitor.h"
 
 #include "scanner.h"
 
+#ifdef __APPLE__
+#include <CoreServices/CoreServices.h>
+#include <dispatch/dispatch.h>
+#endif
+
+// Watcher monitors the file system for changes.
+// Only supported on macOS, no-op on other platforms.
 class Watcher {
 public:
 	Watcher() = delete;
 	Watcher(const std::string &root, std::function<void (const FileRecord &rec)> callback);
 	~Watcher();
 
-	void onEvents(const std::vector<event> &events);
+	void wait();
+	void onEvent(const std::string& path);
 private:
-    fsw::monitor *fsMonitor;
+
 	std::function<void (const FileRecord &rec)> callback;
+
+    std::atomic<bool> stop_requested{false};
+    std::unique_ptr<std::thread> watch_thread;
+
+#ifdef __APPLE__
+    FSEventStreamRef stream;
+    dispatch_queue_t queue;
+	dispatch_semaphore_t semaphore = NULL;
+#endif
 };
 
 #endif

@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
         });
     });
 
-    SyncServerProcess syncServer(HOST, PORT, index, INSTANCE_ID);
+    SyncServerProcess syncServer(HOST, PORT, ROOT, index, INSTANCE_ID);
 
     vector<unique_ptr<SyncClientProcess>> emptySyncThreads;
     CommandProcess cmdProc(INSTANCE_ID, index, emptySyncThreads);

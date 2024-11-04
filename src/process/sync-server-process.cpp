@@ -16,10 +16,11 @@ using namespace std;
 //////////////
 
 SyncServerProcess::SyncServerProcess(
-    const string &host, const string &port, Index &index, const string &instanceId
+    const string &host, const string &port, const string &root, Index &index, const string &instanceId
 ) {
     this->host = host;
     this->port = port;
+    this->root = root;
     this->instanceId = instanceId;
     this->index = &index;
     this->th = thread([this] () {
@@ -81,7 +82,7 @@ void SyncServerProcess::main() {
 
                 st.statusFn("Idle");
 
-                st.remote->awaitWithHandler([&st] (MSG::Type type, MSG::Base *msg) {
+                st.remote->awaitWithHandler([this, &st] (MSG::Type type, MSG::Base *msg) {
                     if (type == MSG::Type::SYNC_ESTABLISH_REQ) {
                         st.mode = ConnType::SYNC;
                         logTag("sync");
@@ -90,7 +91,7 @@ void SyncServerProcess::main() {
 
                         st.mode = ConnType::XFR;
                         logTag("xfr");
-                        st.xfrPath = realpath(".") + req->plan.file.path;
+                        st.xfrPath = root + req->plan.file.path;
                         st.xfrType = (FileRecord::Type)(req->plan.file.type);
 
                         /*assert(req->plan.value == this->host);
@@ -164,7 +165,7 @@ bool SyncServerProcess::syncLoop(State &st) {
                 MSG::DiffCommit *req = dynamic_cast<MSG::DiffCommit*>(msg);
                 list<Relpath> deleted = this->index->commit(req->epoch);
                 for (auto i : deleted) {
-                    Relpath path = realpath(".") + i;
+                    Relpath path = root + i;
                     this->removeFile(path);
                     scanSingle(path, [this] (const FileRecord &rec) {
                         this->index->update(rec);
@@ -187,31 +188,27 @@ bool SyncServerProcess::syncLoop(State &st) {
 }
 
 void SyncServerProcess::receiveFile(State &st) {
-    try {
-        ofstream f(st.xfrPath, ios_base::trunc);
-        if (f.fail()) {
-            ERR("Failed to open file " << st.xfrPath);
-        }
-        f.exceptions(ofstream::failbit);
-
-        bool done = false;
-
-        while (!done) {
-            unique_ptr<MSG::XfrBlock> block =
-                st.remote->awaitWithType<MSG::XfrBlock>(MSG::Type::XFR_BLOCK);
-
-            f.write(reinterpret_cast<char*>(block->data.data()), block->data.size());
-
-            if (block->data.size() < MSG::XfrBlock::MAX_SIZE) {
-                done = true;
-            }
-        }
-    } catch (const std::ios_base::failure& e) {
+    ofstream f(st.xfrPath, ios_base::trunc);
+    if (f.fail()) {
         StatusLine::Add("fileWriteErr", 1);
+        throw runtime_error("Failed to open file " + st.xfrPath);
+    }
 
-        stringstream ss;
-        ss << "Error reading file " << st.xfrPath << ": " << strerror(errno);
-        throw runtime_error(ss.str());
+    bool done = false;
+
+    while (!done) {
+        unique_ptr<MSG::XfrBlock> block =
+            st.remote->awaitWithType<MSG::XfrBlock>(MSG::Type::XFR_BLOCK);
+
+        f.write(reinterpret_cast<char*>(block->data.data()), block->data.size());
+        if (f.bad()) {
+            StatusLine::Add("fileWriteErr", 1);
+            throw runtime_error("File is now in 'bad' state " + st.xfrPath);
+        }
+
+        if (block->data.size() < MSG::XfrBlock::MAX_SIZE) {
+            done = true;
+        }
     }
 }
 

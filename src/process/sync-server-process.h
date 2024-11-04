@@ -49,6 +49,7 @@ class SyncServerProcess : public Process<SyncServerProcessMessageType> {
 public:
 	SyncServerProcess(
 		const std::string &host, const std::string &port,
+		const std::string &root,
 		Index &index, const std::string &instanceId);
 private:
 	/////////////////////////////////////////
@@ -62,7 +63,7 @@ private:
 	void receiveFile(State &st);
 	void removeFile(const std::string &path);
 
-	std::string host, port, instanceId;
+	std::string host, port, root, instanceId;
 	Index *index;
 };
 

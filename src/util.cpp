@@ -113,6 +113,8 @@ string filename(const string &path) {
 
 string realpath(const string &path) {
 	char buf[PATH_MAX];
-	realpath(path.c_str(), buf);
+	if (realpath(path.c_str(), buf) == NULL) {
+        throw runtime_error("realpath failed for path: " + path);
+    }
 	return string(buf);
 }
