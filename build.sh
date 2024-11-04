@@ -56,7 +56,7 @@ if [ ! -f lib/fswatch/libfswatch/Makefile ]; then
 fi
 
 if [ ! -f lib/openssl/Makefile ]; then
-	(cd lib/fswatch/libfswatch; exec ./configure)
+	(cd lib/openssl/; exec ./configure aarch64)
 fi
 
 make

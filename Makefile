@@ -33,7 +33,7 @@ SYNC_CTL_OBJS=$(subst .c,.o,$(SYNC_C_SRCS)) $(subst .cpp,.o,$(SYNC_CTL_SRCS))
 all: $(LIBNAME) sync-primary sync-replica sync-ctl
 
 libcrypto.a:
-	cd lib/openssl; export KERNEL_BITS=64; ./config; make; cd ../..
+	cd lib/openssl; export KERNEL_BITS=64; ./Configure aarch64; make; cd ../..
 	cp lib/openssl/libcrypto.a .
 	cp lib/openssl/libssl.a .
 
