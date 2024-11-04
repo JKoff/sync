@@ -18,7 +18,7 @@
 using namespace std;
 
 void exitWithUsage(const string &progname) {
-    cout << "Usage: " << progname << " instance-id cookie [--bind=<host:port>] [--exclude=<regex>]*" << endl;
+    cout << "Usage: " << progname << " instance-id cookie [--bind=<host:port>] [--path=/root/path] [--exclude=<regex>]*" << endl;
     exit(0);
 }
 
@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
         exitWithUsage(argv[0]);
     }
 
-    const string ROOT = realpath(".");
+    string ROOT = realpath(".");
     const string INSTANCE_ID(argv[1]);
     const string COOKIE(argv[2]);
     string HOST;
@@ -60,6 +60,10 @@ int main(int argc, char **argv) {
         } else if (name == "exclude") {
             regex r(val);
             excludes.push_back(r);
+        } else if (name == "path") {
+            ROOT = val;
+        } else {
+            exitWithUsage(argv[0]);
         }
     }
 
