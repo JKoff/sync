@@ -7,7 +7,7 @@
 #include <sstream>
 #include <unistd.h>
 
-#include "retter/xxHash/xxhash.h"
+#include "retter/algorithms/xxHash/xxhash.h"
 
 #include "../util/log.h"
 

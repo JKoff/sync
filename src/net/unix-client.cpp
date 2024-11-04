@@ -13,7 +13,7 @@
 using namespace std;
 
 UnixClient::UnixClient(const std::string &instanceId) {
-    const char *tmpname = string("/tmp/sync." + instanceId).c_str();
+    string tmpname = "/tmp/sync." + instanceId;
 
     if ((this->sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         throw system_error(errno, system_category(), "socket");
@@ -29,7 +29,7 @@ UnixClient::UnixClient(const std::string &instanceId) {
 
     struct sockaddr_un remote;
     remote.sun_family = AF_UNIX;
-    strncpy(remote.sun_path, tmpname, sizeof(remote.sun_path));
+    strncpy(remote.sun_path, tmpname.c_str(), sizeof(remote.sun_path));
     socklen_t len = sizeof(struct sockaddr_un);
     if (connect(this->sock, (struct sockaddr *)(&remote), len) == -1) {
         throw system_error(errno, system_category(), "connect");

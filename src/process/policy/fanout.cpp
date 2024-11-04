@@ -52,7 +52,7 @@ void FanoutPolicy::waitUntilEmpty() {
 	unique_lock<mutex> lock(this->m);
 	this->empty_cv.wait(lock, [this] {
 		int nQueued = 0;
-		for (const pair<PolicyHost,PolicyStats> &p : this->hostStats) {
+		for (const pair<const PolicyHost, PolicyStats>& p : this->hostStats) {
 			const PolicyStats &stats = p.second;
 			nQueued += stats.remaining;
 		}

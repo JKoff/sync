@@ -40,6 +40,8 @@ namespace MSG {
 	};
 
 	struct Base {
+		virtual ~Base() = default;
+
 		// Serialize to stream
 		virtual void serialize(std::ostream &stream) const = 0;
 		// Deserialize from stream
@@ -54,7 +56,7 @@ namespace MSG {
 		template <typename T>
 		static void Register(Type t) {
 			Factory::constructors[t] = [] () {
-				return std::unique_ptr<Base>(dynamic_cast<Base*>(new T));
+				return std::unique_ptr<Base>(new T);
 			};
 			Factory::types[std::type_index(typeid(T))] = t;
 		}

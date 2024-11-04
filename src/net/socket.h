@@ -147,8 +147,8 @@ public:
 		this->sock = other.sock;
 		other.sock = 0;
 
-		this->buf = move(other.buf);
-		this->buf2 = move(other.buf2);
+		this->buf = std::move(other.buf);
+		this->buf2 = std::move(other.buf2);
 	}
 	Socket& operator=(const Socket &other) = delete;
 	Socket& operator=(Socket &&other) {

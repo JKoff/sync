@@ -16,7 +16,7 @@ LDLIBS=libsnappy.a libfswatch.a libcrypto.a libssl.a
 SNAPPY_OBJS=lib/snappy/snappy.o lib/snappy/snappy-c.o \
 	lib/snappy/snappy-sinksource.o lib/snappy/snappy-stubs-internal.o
 
-SYNC_C_SRCS=lib/retter/xxHash/xxhash.c
+SYNC_C_SRCS=lib/retter/algorithms/xxHash/xxhash.c
 
 SYNC_PRIMARY_SRCS=$(wildcard src/sync-primary.cpp src/index.cpp src/util.cpp src/*/*.cpp src/*/*/*.cpp)
 SYNC_PRIMARY_OBJS=$(subst .c,.o,$(SYNC_C_SRCS)) $(subst .cpp,.o,$(SYNC_PRIMARY_SRCS))
@@ -45,8 +45,11 @@ libfswatch.a:
 	ar rcs $@ lib/fswatch/libfswatch/src/libfswatch/c/*.o lib/fswatch/libfswatch/src/libfswatch/c++/*.o
 	cp lib/fswatch/libfswatch/src/libfswatch/c/*.h lib/fswatch/libfswatch/src/libfswatch/c++/
 
-lib/retter/xxHash/xxhash.o:
-	$(C) -c -o lib/retter/xxHash/xxhash.o lib/retter/xxHash/xxhash.c $(CFLAGS) -Iincludes
+lib/retter/algorithms/xxHash/xxhash.o:
+	$(C) -c -o lib/retter/algorithms/xxHash/xxhash.o lib/retter/algorithms/xxHash/xxhash.c $(CFLAGS) -Iincludes
+
+%.o: %.c
+	$(CC) -c -o $(subst .c,.o,$<) $< $(CCFLAGS) -Iincludes
 
 %.o: %.cpp
 	$(CC) -c -o $(subst .cpp,.o,$<) $< $(CCFLAGS) -Iincludes

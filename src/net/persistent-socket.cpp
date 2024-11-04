@@ -16,7 +16,7 @@ PersistentSocket::PersistentSocket(function<Socket ()> constructorFn) {
 
         StatusLine status("PersistentSocket");
 
-        function<void (Message&)> messageFn = [this, &status, &isBorrowed, &managedSocket] (Message &msg) {
+        function<void (Message&)> messageFn = [&status, &isBorrowed, &managedSocket] (Message &msg) {
             switch (msg.type) {
             case MT::BORROW_SOCKET:
                 STATUS(status, "BORROW_SOCKET");

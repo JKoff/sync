@@ -81,7 +81,7 @@ void SyncServerProcess::main() {
 
                 st.statusFn("Idle");
 
-                st.remote->awaitWithHandler([this, &st] (MSG::Type type, MSG::Base *msg) {
+                st.remote->awaitWithHandler([&st] (MSG::Type type, MSG::Base *msg) {
                     if (type == MSG::Type::SYNC_ESTABLISH_REQ) {
                         st.mode = ConnType::SYNC;
                         logTag("sync");

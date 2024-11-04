@@ -351,7 +351,7 @@ Socket::Frame Socket::receive(chrono::duration<uint64_t> timeout) {
 		{
 			unique_ptr<MSG::Base> sub = MSG::Factory::Create(hdr.type);
 			deserializeFromStream(buf + hdr.wireSize(), hdr.size - hdr.wireSize(), *sub);
-			return Frame{hdr, move(sub)};
+			return Frame{hdr, std::move(sub)};
 		}
 	}
 }
