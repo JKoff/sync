@@ -104,6 +104,10 @@ void Directory::forEach(function<void (struct dirent*)> f) {
     struct dirent *dp;
 
     while ((dp = readdir(this->d)) != nullptr) {
+        if (dp->d_type != DT_REG && dp->d_type != DT_DIR) {
+            ERR("Found non-regular file: " + string(dp->d_name));
+            continue;
+        }
     	if (dp->d_name[0] == '.') {
 	        if (dp->d_name[1] == 0) {
 	            continue;
