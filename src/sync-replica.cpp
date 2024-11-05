@@ -7,6 +7,7 @@
 #include "fs/watcher.h"
 #include "fs/util.h"
 #include "net/inet-server.h"
+#include "net/protocol.h"
 #include "process/command-process.h"
 #include "process/sync-client-process.h"
 #include "process/sync-server-process.h"
@@ -81,7 +82,7 @@ int main(int argc, char **argv) {
         }
     });
 
-    LOG("Starting server on " << HOST << ":" << PORT);
+    LOG("Starting server on " << HOST << ":" << PORT << " with protocol version " << PROTOCOL_VERSION);
 
     LOG("Indexing " << ROOT);
     cout << endl;

@@ -16,6 +16,8 @@
 
 class StatusLine;
 
+const int64_t PROTOCOL_VERSION = 1;
+
 namespace MSG {
 	/**
 	 * Want to add a message?

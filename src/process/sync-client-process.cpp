@@ -5,6 +5,8 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "../net/protocol.h"
+
 using namespace std;
 
 //////////////
@@ -33,6 +35,7 @@ SyncClientProcess::SyncClientProcess(
             }
         }
     });
+    StatusLine::Add("protocol version", PROTOCOL_VERSION);
 }
 
 
