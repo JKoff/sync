@@ -49,7 +49,8 @@ void Index::update(const FileRecord &rec) {
 	this->paths[path].type = rec.type;
 
 	switch (rec.type) {
-	case FileRecord::Type::DOES_NOT_EXIST: {
+	case FileRecord::Type::DOES_NOT_EXIST:
+	{
 		// The original is going to get mutated as we go down, breaking iteration.
 		set<Relpath> childrenCopy = this->paths[path].children;
 		for (const Relpath &child : childrenCopy) {
@@ -60,10 +61,13 @@ void Index::update(const FileRecord &rec) {
 		this->paths.erase(path);
 		this->paths[parent].children.erase(path);
 		break;
-	} case FileRecord::Type::FILE:
+	}
+	case FileRecord::Type::FILE:
 	case FileRecord::Type::DIRECTORY:
+	case FileRecord::Type::SYMLINK:
 		this->paths[path].mode = rec.mode;
 		this->paths[path].version = rec.version;
+		this->paths[path].targetPath = rec.targetPath;  // only used by symlinks
 		this->paths[parent].children.insert(path);
 		break;
 	}
@@ -128,7 +132,7 @@ void Index::diff(
 		for (; !processing.empty(); processing.pop_front()) {
 			Relpath path = processing.front();
 			
-			PolicyFile policyFile = { path, this->paths[path].type };
+			PolicyFile policyFile = { path, this->paths[path].targetPath, this->paths[path].type };
 			emitFn(policyFile);
 
 			// Push each child

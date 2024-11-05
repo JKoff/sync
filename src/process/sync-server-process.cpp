@@ -1,5 +1,6 @@
 #include "sync-server-process.h"
 
+#include <filesystem>
 #include <functional>
 #include <iostream>
 #include <stdexcept>
@@ -49,6 +50,7 @@ void SyncServerProcess::main() {
                 st.remote = &remote;
                 st.deleted = 0;
                 st.receivedFiles = 0;
+                st.receivedSymlinks = 0;
                 st.receivedDirs = 0;
                 st.statusFn = [&st, &statusLine] (string str) {
                     string modeStr;
@@ -92,6 +94,7 @@ void SyncServerProcess::main() {
                         st.mode = ConnType::XFR;
                         logTag("xfr");
                         st.xfrPath = root + req->plan.file.path;
+                        st.xfrTargetPath = req->plan.file.targetPath;
                         st.xfrType = (FileRecord::Type)(req->plan.file.type);
 
                         /*assert(req->plan.value == this->host);
@@ -212,6 +215,10 @@ void SyncServerProcess::receiveFile(State &st) {
     }
 }
 
+void SyncServerProcess::receiveSymlink(State &st) {
+    std::filesystem::create_symlink(st.xfrTargetPath, st.xfrPath);
+}
+
 void SyncServerProcess::removeFile(const string &path) {
     try {
         File f(path);
@@ -230,17 +237,23 @@ bool SyncServerProcess::xfrLoop(State &st) {
         StatusLine::Add("dirsIn", 1);
         ++st.receivedDirs;
         break;
-    case FileRecord::Type::DOES_NOT_EXIST: {
+    case FileRecord::Type::DOES_NOT_EXIST:
         this->removeFile(st.xfrPath);
 
         StatusLine::Add("del", 1);
         ++st.deleted;
         break;
-    } case FileRecord::Type::FILE:
+    case FileRecord::Type::FILE:
         this->receiveFile(st);
 
         ++st.receivedFiles;
         StatusLine::Add("filesIn", 1);
+        break;
+    case FileRecord::Type::SYMLINK:
+        this->receiveSymlink(st);
+
+        ++st.receivedSymlinks;
+        StatusLine::Add("symlinksIn", 1);
         break;
     }
 

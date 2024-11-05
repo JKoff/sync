@@ -74,14 +74,17 @@ struct PolicyStats {
 
 struct PolicyFile {
 	Relpath path;
+	std::string targetPath;  // for symlinks only
 	FileRecord::Type type;
 
 	void serialize(std::ostream &stream) const {
 		::serialize(stream, this->path);
+		::serialize(stream, this->targetPath);
 		::serialize(stream, this->type);
 	}
 	void deserialize(std::istream &stream) {
 		::deserialize(stream, this->path);
+		::deserialize(stream, this->targetPath);
 		::deserialize(stream, this->type);
 	}
 };

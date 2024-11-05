@@ -28,6 +28,11 @@ FileRecord::FileRecord(const File &f) {
     } else if (S_ISREG(f.statbuf.st_mode)) {
         type = Type::FILE;
         version = f.hash();
+    } else if (S_ISLNK(f.statbuf.st_mode)) {
+        type = Type::SYMLINK;
+        version = f.hash();
+        std::filesystem::path symlinkPath(f.path);
+        this->targetPath = std::filesystem::read_symlink(symlinkPath);
     } else {
         throw runtime_error("Unknown stat type.");
     }
@@ -55,6 +60,9 @@ std::ostream& operator<<(std::ostream &os, const FileRecord::Type &type) {
         case FileRecord::Type::DIRECTORY:
             os << "DIRECTORY";
             break;
+        case FileRecord::Type::SYMLINK:
+            os << "SYMLINK";
+            break;
         case FileRecord::Type::DOES_NOT_EXIST:
             os << "GONE";
             break;
@@ -78,14 +86,13 @@ void deserialize(std::istream &stream, FileRecord::Type &val) {
 ///////////////
 
 Directory::Directory(const File &f) : exhausted(false) {
-    DIR *d = fdopendir(f.fd);
+    DIR *d = opendir(f.path.c_str());
     if (d == nullptr) {
         throw runtime_error("Could not turn fd into DIR*.");
     }
 
     // Commit
     this->d = d;
-    this->fd = f.fd;
     this->path = f.path;
 }
 
@@ -104,7 +111,7 @@ void Directory::forEach(function<void (struct dirent*)> f) {
     struct dirent *dp;
 
     while ((dp = readdir(this->d)) != nullptr) {
-        if (dp->d_type != DT_REG && dp->d_type != DT_DIR) {
+        if (dp->d_type != DT_REG && dp->d_type != DT_DIR && dp->d_type != DT_LNK) {
             ERR("Found non-regular file: " + string(dp->d_name));
             continue;
         }
@@ -138,30 +145,25 @@ void Directory::remove() {
 //////////
 
 File::File(const char *path) {
-    this->init(open(path, O_RDONLY), path);
+    this->init(path);
 }
 File::File(const string &path) {
-    this->init(open(path.c_str(), O_RDONLY), path);
+    this->init(path);
 }
 File::File(const Directory &dir, const char *name) {
     stringstream ss;
     ss << dir.path << "/" << name;
 
-    this->init(openat(dir.fd, name, O_RDONLY), ss.str());
+    this->init(ss.str());
 }
 
-void File::init(int fd, string path) {
-    if (fd == -1) {
-        throw does_not_exist_error("Could not open file from path: " + path);
-    }
-
+void File::init(string path) {
     struct stat statbuf;
-    if (fstat(fd, &statbuf) != 0) {
+    if (lstat(path.c_str(), &statbuf) != 0) {
         throw runtime_error("Could not stat file: " + path);
     }
 
     // Commit
-    this->fd = fd;
     this->statbuf = statbuf;
     this->path = path;
 }
@@ -206,6 +208,10 @@ bool File::isDir() const {
     return S_ISDIR(this->statbuf.st_mode);
 }
 
+bool File::isLink() const {
+    return S_ISLNK(this->statbuf.st_mode);
+}
+
 void File::remove() {
     if (this->isDir()) {
         Directory subdir(*this);
@@ -215,6 +221,4 @@ void File::remove() {
     }
 }
 
-File::~File() {
-    close(this->fd);
-}
+File::~File() { }

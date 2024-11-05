@@ -2,6 +2,7 @@
 #define FS_TYPES_H
 
 #include <dirent.h>
+#include <filesystem>
 #include <functional>
 #include <string>
 #include <sys/stat.h>
@@ -23,6 +24,7 @@ public:
 	enum class Type : uint8_t {
 		FILE,
 		DIRECTORY,
+		SYMLINK,
 		DOES_NOT_EXIST
 	};
 
@@ -33,6 +35,7 @@ public:
 	mode_t mode;
 	HashT version;
 	Abspath path;
+	std::filesystem::path targetPath;  // only for symlinks
 };
 
 std::ostream& operator<<(std::ostream &os, const FileRecord::Type &type);
@@ -54,12 +57,12 @@ public:
 	void forEach(std::function<void (struct dirent*)> f);
 	void remove();
 
-	int fd;
 	std::string path;
+
 };
 
 class File {
-	void init(int fd, std::string path);
+	void init(std::string path);
 public:
 	File() = delete;
 	File(const File &that) = delete;
@@ -73,11 +76,12 @@ public:
 
 	HashT hash() const;
 	bool isDir() const;
+	bool isLink() const;
 	void remove();
 
 	~File();
 
-	int fd;
+	// int fd;
 	std::string path;
     struct stat statbuf;
 };

@@ -38,11 +38,13 @@ class SyncServerProcess : public Process<SyncServerProcessMessageType> {
 
 		// XFR mode only
 		std::string xfrPath;
+		std::string xfrTargetPath;  // for symlinks only
 		FileRecord::Type xfrType;
 
 		// Stats
 		uint64_t deleted;
 		uint64_t receivedFiles;
+		uint64_t receivedSymlinks;
 		uint64_t receivedDirs;
 	};
 
@@ -61,6 +63,7 @@ private:
 
 	// Helpers
 	void receiveFile(State &st);
+	void receiveSymlink(State &st);
 	void removeFile(const std::string &path);
 
 	std::string host, port, root, instanceId;

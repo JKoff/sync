@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
                 index.update(rec);
 
                 Relpath path = rec.path.substr(ROOT.length());
-                PolicyFile file = { path, rec.type };
+                PolicyFile file = { path, rec.targetPath, rec.type };
                 for (auto policyHost : policyHosts) {
                     transferProc.castTransfer(policyHost, file);
                 }

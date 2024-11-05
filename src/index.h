@@ -20,6 +20,7 @@ class Index {
 		mode_t mode;
 		HashT version = 0;
 		std::set<Relpath> children;
+		std::string targetPath;  // for symlinks
 
 		// Merkle tree node value
 		HashT hash;
