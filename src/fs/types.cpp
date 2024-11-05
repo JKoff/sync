@@ -112,7 +112,8 @@ void Directory::forEach(function<void (struct dirent*)> f) {
 
     while ((dp = readdir(this->d)) != nullptr) {
         if (dp->d_type != DT_REG && dp->d_type != DT_DIR && dp->d_type != DT_LNK) {
-            ERR("Found non-regular file: " + string(dp->d_name));
+            ERR("Found non-regular file: " + string(dp->d_name) + " in " + this->path + " with type " + to_string(dp->d_type));
+            StatusLine::Add("irregularFile", 1);
             continue;
         }
     	if (dp->d_name[0] == '.') {
