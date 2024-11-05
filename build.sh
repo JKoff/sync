@@ -18,15 +18,10 @@ fi
 
 cd ..
 
-# if [ ! -f lib/fswatch/libfswatch/Makefile ]; then
-# 	(cd lib/fswatch; exec ./configure)
-# fi
-
-# if [ ! -f lib/fswatch/libfswatch/Makefile ]; then
-# 	(cd lib/fswatch/libfswatch; exec make)
-# fi
-
-export CCFLAGS="-Iincludes -I/opt/homebrew/opt/openssl@3/include -I/opt/homebrew/opt/snappy/include "
+export C="gcc"
+export CC="g++"
+export CCFLAGS="-Iincludes -I/opt/homebrew/opt/openssl@3/include -I/opt/homebrew/opt/snappy/include"
 export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib -L/opt/homebrew/opt/snappy/lib"
 export LDLIBS="/opt/homebrew/opt/openssl@3/lib/*.a /opt/homebrew/opt/snappy/lib/*.a"
 make
+codesign --sign "Developer ID Application: Jonathan Koff (4Q4H2RSYXN)" sync-primary

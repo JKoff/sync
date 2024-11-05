@@ -6,12 +6,12 @@ ifeq ($(UNAME), Darwin)
 	LD=-framework CoreFoundation -framework CoreServices
 endif
 
-C=clang
-CFLAGS ?= -O0 -g
+C ?= clang
+CFLAGS += -O0 -g
 CFLAGS += -I. -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wstrict-prototypes
 
-CC=clang++
-CCFLAGS += -std=c++11 -Wall -Werror -pedantic -g -pthread -Qunused-arguments
+CC ?= clang++
+CCFLAGS += -std=c++17 -Wall -Werror -pedantic -g -pthread -Qunused-arguments
 
 SYNC_C_SRCS=lib/retter/algorithms/xxHash/xxhash.c
 
@@ -29,11 +29,8 @@ SYNC_CTL_OBJS=$(subst .c,.o,$(SYNC_C_SRCS)) $(subst .cpp,.o,$(SYNC_CTL_SRCS))
 
 all: sync-primary sync-replica sync-ctl
 
-lib/retter/algorithms/xxHash/xxhash.o:
-	$(C) -c -o lib/retter/algorithms/xxHash/xxhash.o lib/retter/algorithms/xxHash/xxhash.c $(CFLAGS) -Iincludes
-
 %.o: %.c
-	$(CC) -c -o $(subst .c,.o,$<) $< $(CCFLAGS) $(LDFLAGS)
+	$(C) -c -o $(subst .c,.o,$<) $< $(CFLAGS)
 
 %.o: %.cpp
 	$(CC) -c -o $(subst .cpp,.o,$<) $< $(CCFLAGS) $(LDFLAGS)

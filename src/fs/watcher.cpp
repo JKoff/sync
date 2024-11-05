@@ -5,6 +5,7 @@
 #include <string>
 
 #include "scanner.h"
+#include "../util/log.h"
 
 using namespace std;
 
@@ -37,8 +38,8 @@ Watcher::Watcher(const std::string &root, std::function<void (const FileRecord &
                                                   &context,
                                                   pathsToWatch,
                                                   kFSEventStreamEventIdSinceNow,
-                                                  1.0,
-                                                  kFSEventStreamCreateFlagNone);
+                                                  0.1,
+                                                  kFSEventStreamCreateFlagFileEvents);
 
     if (stream == NULL) {
         throw std::runtime_error("Failed to create FSEventStream");

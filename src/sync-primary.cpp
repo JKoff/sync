@@ -21,6 +21,13 @@
 
 using namespace std;
 
+std::vector<std::function<void()>> cleanupFns;
+void shutdownHandler(int signal) {
+    for (auto fn : cleanupFns) {
+        fn();
+    }
+}
+
 void exitWithUsage(const string &progname) {
     cout << "Usage: " << progname << " "
          << "instance-id "
@@ -37,7 +44,8 @@ int main(int argc, char **argv) {
 
     // MSG_NOSIGNAL in send() apparently doesn't entirely prevent SIGPIPE from occurring.
     signal(SIGPIPE, SIG_IGN);
-
+    signal(SIGINT, shutdownHandler);
+    signal(SIGTERM, shutdownHandler);
 
     ////////////////////
     // Deal with ARGV //
@@ -97,6 +105,9 @@ int main(int argc, char **argv) {
     //////////////////
 
     StatusLine mainStatusLine("Main");
+    cleanupFns.push_back([&mainStatusLine] () {
+        STATUS(mainStatusLine, "Shutting down...");
+    });
     STATUS(mainStatusLine, "Starting...");
 
     if (replicas.size() > 0) {
@@ -182,7 +193,7 @@ int main(int argc, char **argv) {
                 }
             }
         };
-
+    
     thread watcherThread([ROOT, &updateSingleFn] () {
         LOG("-- Starting watcher thread.");
         StatusLine statusLine("Watcher");
