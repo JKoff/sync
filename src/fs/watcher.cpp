@@ -78,14 +78,8 @@ Watcher::~Watcher() {
 void Watcher::onEvent(const std::string& path) {
     scanSingle(path, callback);
 }
-
-void Watcher::wait() {
-	dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
-}
-
 #else
 Watcher::Watcher(const string &root, std::function<void (const FileRecord &rec)> callback) { }
 Watcher::~Watcher() { }
-void Watcher::wait() { }
 void Watcher::onEvent(const std::string& path) { }
 #endif

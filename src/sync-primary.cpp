@@ -1,4 +1,6 @@
+#include <atomic>
 #include <chrono>
+#include <cstdlib>
 #include <functional>
 #include <iostream>
 #include <regex>
@@ -21,11 +23,15 @@
 
 using namespace std;
 
+std::atomic<bool> stop_requested = {false};
 std::vector<std::function<void()>> cleanupFns;
 void shutdownHandler(int signal) {
     for (auto fn : cleanupFns) {
         fn();
     }
+    stop_requested.store(true);
+    this_thread::sleep_for(chrono::milliseconds(250));
+    std::exit(0);
 }
 
 void exitWithUsage(const string &progname) {
@@ -199,7 +205,9 @@ int main(int argc, char **argv) {
         StatusLine statusLine("Watcher");
         STATUS(statusLine, "Watching filesystem...");
         Watcher watcher(ROOT, updateSingleFn);
-        watcher.wait();
+        while (!stop_requested.load()) {
+            this_thread::sleep_for(chrono::milliseconds(250));
+        }
     });
 
     thread fullscanThread([ROOT, &index, &filterFn, &updateFn] () {
@@ -235,7 +243,7 @@ int main(int argc, char **argv) {
     // overhead than a ping<->pong exchange if there are no discrepancies.
 
     thread aaeThread = thread([&policy, &syncThreads, &transferProc] () {
-        for (;;) {
+        while (!stop_requested.load()) {
             this_thread::sleep_for(chrono::seconds(30));
 
             // This won't entirely prevent race conditions.

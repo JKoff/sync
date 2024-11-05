@@ -24,7 +24,6 @@ public:
 	Watcher(const std::string &root, std::function<void (const FileRecord &rec)> callback);
 	~Watcher();
 
-	void wait();
 	void onEvent(const std::string& path);
 private:
 
