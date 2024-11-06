@@ -80,7 +80,7 @@ public:
 
                 try {
                     statusFn("Transferring");
-                    this->transfer(plan, sock);
+                    this->transfer(plan, sock, statusFn);
                 } catch (const exception &e) {
                     // Assume it was a failure and requeue it.
                     LOG("TransferWorker: " << e.what());
@@ -94,8 +94,9 @@ public:
             }
         });
     }
-    void transfer(const PolicyPlan &plan, PersistentSocket &hostSock) {
+    void transfer(const PolicyPlan &plan, PersistentSocket &hostSock, std::function<void (string)> statusFn) {
         assert(plan.steps.value == this->host);
+        statusFn("Transferring - " + plan.file.path);
 
         MSG::XfrEstablishReq req;
         req.plan = plan;
@@ -130,6 +131,10 @@ public:
             }
 
             StatusLine::Add("filesOut", 1);
+        } else if (plan.file.type == FileRecord::Type::SYMLINK) {
+            this->block.data.resize(0);
+            hostSock.send(this->block);
+            StatusLine::Add("symlinksOut", 1);
         }
     }
 private:
