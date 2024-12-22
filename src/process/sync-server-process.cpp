@@ -216,7 +216,11 @@ void SyncServerProcess::receiveFile(State &st) {
 }
 
 void SyncServerProcess::receiveSymlink(State &st) {
-    std::filesystem::create_symlink(st.xfrTargetPath, st.xfrPath);
+    try {
+        std::filesystem::create_symlink(st.xfrTargetPath, st.xfrPath);
+    } catch (const exception &e) {
+        // This is likely fine. Sometimes the symlink already exists.
+    }
 }
 
 void SyncServerProcess::removeFile(const string &path) {

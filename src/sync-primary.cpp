@@ -242,18 +242,42 @@ int main(int argc, char **argv) {
     // AAE thread performs a full-sync at regular intervals. This shouldn't carry much more
     // overhead than a ping<->pong exchange if there are no discrepancies.
 
-    thread aaeThread = thread([&policy, &syncThreads, &transferProc] () {
+    thread aaeThread = thread([&policy, &syncThreads, &transferProc, &index] () {
+        StatusLine statusLine("AAE");
+        std::string status = "pending";
         while (!stop_requested.load()) {
-            this_thread::sleep_for(chrono::seconds(30));
+            STATUS(statusLine, "sleep " + status);
+            this_thread::sleep_for(chrono::seconds(1));
 
             // This won't entirely prevent race conditions.
             // That said, copying a file twice will usually be a low-impact
             // glitch, and the window should be fairly small.
+            STATUS(statusLine, "wait-policy-empty " + status);
             policy.waitUntilEmpty();
+
+            STATUS(statusLine, "wait-xfr-zero " + status);
             transferProc.xfrCounter.waitUntilZero();
 
+            STATUS(statusLine, "metadata " + status);
+            bool anyDiscrepancies = false;
             for (auto &replica : syncThreads) {
-                replica->castFullsync();
+                MSG::InfoResp remoteResp = replica->callInfo();
+
+                stringstream ss;
+                for (const auto &payload : remoteResp.payloads) {
+                    ss << payload.instanceId << " " << payload.status << " " << payload.filesIndexed << " " << payload.hash << " | " << endl;
+                    if (payload.hash != index.hash()) {
+                        anyDiscrepancies = true;
+                    }
+                }
+                status = ss.str();
+            }
+
+            if (anyDiscrepancies) {
+                STATUS(statusLine, "cast " + status);
+                for (auto &replica : syncThreads) {
+                    replica->castFullsync();
+                }
             }
         }
     });

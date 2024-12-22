@@ -231,6 +231,12 @@ void StatusLine::Log(const string &line) {
 void StatusLine::PrintAll(ostream &stream) {
 	// Mutex should already be held prior to calling.
 
+	int terminalWidth = 60;
+	struct winsize w;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) != -1) {
+		terminalWidth = w.ws_col;
+    }
+
 	linesPrinted = 0;
 
 	for (const auto &line : logLines) {
@@ -246,9 +252,17 @@ void StatusLine::PrintAll(ostream &stream) {
 		++linesPrinted;
 	}
 
+	stringstream ss;
 	for (const auto &pair : gEnv) {
-		stringstream ss;
-		ss << pair.first << " = " << VarToString(gEnv, pair.second) << " | ";
+		if (ss.str().size() > terminalWidth - 16) {
+			stream << ss.str() << endl;
+			ss.str("");
+			ss.clear();
+			++linesPrinted;
+		}
+		ss << pair.first << " = " << VarToString(gEnv, pair.second) << "   ";
+	}
+	if (ss.str().size() > 0) {
 		stream << ss.str() << endl;
 		++linesPrinted;
 	}

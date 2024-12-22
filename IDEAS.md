@@ -1,0 +1,1 @@
+- Consider sending exclusions from the primary to the replica to avoid discrepancies.

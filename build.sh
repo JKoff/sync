@@ -24,5 +24,15 @@ export CCFLAGS="-Iincludes -I/opt/homebrew/opt/openssl@3/include -I/opt/homebrew
 export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib -L/opt/homebrew/opt/snappy/lib"
 export LDLIBS="/opt/homebrew/opt/openssl@3/lib/*.a /opt/homebrew/opt/snappy/lib/*.a"
 make
-codesign --sign "Developer ID Application: Jonathan Koff (4Q4H2RSYXN)" sync-primary
+
+echo "Done building. Signing and copying..."
+codesign --sign "Developer ID Application: Jonathan Koff (4Q4H2RSYXN)" sync-primary || true
+codesign --sign "Developer ID Application: Jonathan Koff (4Q4H2RSYXN)" sync-ctl || true
+
+rm ~/sync-primary
+rm ~/sync-ctl
+
 cp sync-primary ~/sync-primary
+cp sync-ctl ~/sync-ctl
+
+ls -lh ~/sync-*

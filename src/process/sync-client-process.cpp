@@ -76,6 +76,7 @@ void SyncClientProcess::performFullsync() {
 
 	this->index->diff([this,epoch,&remote] (const deque<string>& seen) {
         // Oracle function
+
         deque<string> result;
 
         // Stats for progress indication
@@ -140,6 +141,7 @@ void SyncClientProcess::performFullsync() {
         return result;
     }, [this] (const PolicyFile &file) {
         // Emit function
+
         if (this->verbose) {
             LOG("Must transfer " << file.path);
         }
@@ -190,7 +192,7 @@ void SyncClientProcess::castFullsync() {
 MSG::InfoResp SyncClientProcess::callInfo() {
 	Message msg;
 	msg.type = MT::INFO;
-    Any a = this->call(msg, chrono::seconds(5));
+    Any a = this->call(msg, chrono::seconds(20));
     MSG::InfoResp resp = a.cast<MSG::InfoResp>();
     return resp;
 	// return this->call(msg, chrono::seconds(5)).cast<MSG::InfoResp>();

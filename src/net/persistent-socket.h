@@ -64,9 +64,9 @@ public:
 
     template <typename T>
     void send(const T &msg) {
-    	PerformWithBorrowedSocket<T> send(this, [&msg] (Socket &sock) {
-    		sock.send(msg);
-    	});
+		PerformWithBorrowedSocket<T> send(this, [&msg] (Socket &sock) {
+			sock.send(msg);
+		});
     }
 
 	// Packets can be pretty big——need to be allocated on heap, and can't be copied around.

@@ -87,6 +87,11 @@ struct PolicyFile {
 		::deserialize(stream, this->targetPath);
 		::deserialize(stream, this->type);
 	}
+	std::string debugString() const {
+		std::stringstream stream;
+		stream << "PolicyFile[" << this->path << " | " << this->targetPath << " | " << this->type << "]";
+		return stream.str();
+	}
 };
 
 template<> struct std::less<PolicyFile> {
@@ -131,6 +136,11 @@ struct PolicyPlan {
 	void deserialize(std::istream &stream) {
 		::deserialize(stream, this->file);
 		::deserialize(stream, this->steps);
+	}
+	std::string debugString() const {
+		std::stringstream stream;
+		stream << "PolicyPlan[file=" << file.debugString() << "]";
+		return stream.str();
 	}
 };
 

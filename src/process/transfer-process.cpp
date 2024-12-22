@@ -82,8 +82,10 @@ public:
                     statusFn("Transferring");
                     this->transfer(plan, sock, statusFn);
                 } catch (const exception &e) {
+                    statusFn("Error during transfer - " + string(e.what()));
+
                     // Assume it was a failure and requeue it.
-                    LOG("TransferWorker: " << e.what());
+                    LOG("TransferWorker " << plan.debugString() << ": " << e.what());
                     statusFn(e.what());
                     this->policy->push(this->host, plan.file);
 
@@ -96,7 +98,7 @@ public:
     }
     void transfer(const PolicyPlan &plan, PersistentSocket &hostSock, std::function<void (string)> statusFn) {
         assert(plan.steps.value == this->host);
-        statusFn("Transferring - " + plan.file.path);
+        statusFn("Transfer - " + plan.file.path);
 
         MSG::XfrEstablishReq req;
         req.plan = plan;
@@ -114,17 +116,20 @@ public:
             this->block.data.resize(MSG::XfrBlock::MAX_SIZE);
 
             do {
+                statusFn("Transfer - " + plan.file.path + " - " + to_string(f.tellg()) + " - read");
                 f.read((char*)this->block.data.data(), MSG::XfrBlock::MAX_SIZE);
                 if (f.bad()) {
                     StatusLine::Add("fileReadErr", 1);
                     throw runtime_error("File is now in 'bad' state " + req.plan.file.path);
                 }
                 this->block.data.resize(f.gcount());
+                statusFn("Transfer - " + plan.file.path + " - " + to_string(f.tellg()) + " - send");
                 hostSock.send(this->block);
                 StatusLine::Add("essentialOut", this->block.data.size());
             } while (f.good());
 
             // If file is already empty, closing protocol is already satisfied.
+            statusFn("Transfer - " + plan.file.path + " - " + to_string(f.tellg()) + " - empty-send");
             if (this->block.data.size() == MSG::XfrBlock::MAX_SIZE) {
                 this->block.data.resize(0);
                 hostSock.send(this->block);
@@ -165,7 +170,7 @@ TransferProcess::TransferProcess(
 
 void TransferProcess::main() {
     // Set up pool of workers
-    size_t WORKERS_PER_PEER = 2;
+    size_t WORKERS_PER_PEER = 1;
     size_t npeers = this->peers.size();
     vector<TransferWorker> workers(WORKERS_PER_PEER * npeers);
     for (int i=0, n=workers.size(); i < n; i++) {

@@ -25,7 +25,7 @@ namespace MSG {
 	 * 2. Add to this header
 	 * 3. Register with Factory in protocol.cpp
 	 */
-
+	
 	struct InfoReq : Base {
 		virtual void serialize(std::ostream &stream) const { }
 		virtual void deserialize(std::istream &stream) { }

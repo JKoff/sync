@@ -1,10 +1,12 @@
 #include "types.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
-#include <stdexcept>
 #include <sstream>
+#include <stdexcept>
+#include <string.h>
 #include <unistd.h>
 
 #include "retter/algorithms/xxHash/xxhash.h"
@@ -12,6 +14,19 @@
 #include "../util/log.h"
 
 using namespace std;
+
+HashT HashString(const string &s) {
+    XXH64_state_t st;
+    if (XXH64_reset(&st, 0) == XXH_ERROR) {
+        throw runtime_error("Could not reset xxhash state for string: " + s);
+    }
+
+    if (XXH64_update(&st, s.data(), s.size()) == XXH_ERROR) {
+        throw runtime_error("Could not update xxhash for string: " + s);
+    }
+        
+    return XXH64_digest(&st);
+}
 
 
 ////////////////
@@ -30,9 +45,9 @@ FileRecord::FileRecord(const File &f) {
         version = f.hash();
     } else if (S_ISLNK(f.statbuf.st_mode)) {
         type = Type::SYMLINK;
-        version = f.hash();
         std::filesystem::path symlinkPath(f.path);
         this->targetPath = std::filesystem::read_symlink(symlinkPath);
+        version = HashString(this->targetPath.string());
     } else {
         throw runtime_error("Unknown stat type.");
     }
@@ -161,7 +176,11 @@ File::File(const Directory &dir, const char *name) {
 void File::init(string path) {
     struct stat statbuf;
     if (lstat(path.c_str(), &statbuf) != 0) {
-        throw runtime_error("Could not stat file: " + path);
+        if (errno == ENOENT) {
+            throw does_not_exist_error("File does not exist: " + path);
+        } else {
+            throw runtime_error("Could not stat file " + path + ": " + strerror(errno));
+        }
     }
 
     // Commit
