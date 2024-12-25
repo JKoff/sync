@@ -115,7 +115,7 @@ public:
             // zero after the read. I don't understand why.
             this->block.data.resize(MSG::XfrBlock::MAX_SIZE);
 
-            do {
+            while (f.good()) {
                 statusFn("Transfer - " + plan.file.path + " - " + to_string(f.tellg()) + " - read");
                 f.read((char*)this->block.data.data(), MSG::XfrBlock::MAX_SIZE);
                 if (f.bad()) {
@@ -126,7 +126,7 @@ public:
                 statusFn("Transfer - " + plan.file.path + " - " + to_string(f.tellg()) + " - send");
                 hostSock.send(this->block);
                 StatusLine::Add("essentialOut", this->block.data.size());
-            } while (f.good());
+            }
 
             // If file is already empty, closing protocol is already satisfied.
             statusFn("Transfer - " + plan.file.path + " - " + to_string(f.tellg()) + " - empty-send");
