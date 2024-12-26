@@ -85,7 +85,7 @@ public:
                     statusFn("Error during transfer - " + string(e.what()));
 
                     // Assume it was a failure and requeue it.
-                    LOG("TransferWorker " << plan.debugString() << ": " << e.what());
+                    ERR("TransferWorker failed in transfer loop " << plan.debugString() << ": " << e.what());
                     statusFn(e.what());
                     this->policy->push(this->host, plan.file);
 
@@ -100,9 +100,19 @@ public:
         assert(plan.steps.value == this->host);
         statusFn("Transfer - " + plan.file.path);
 
+        // if (plan.file.path == "") {
+        //     // This is going to be a no-op anyway.
+        //     return;
+        // }
+
         MSG::XfrEstablishReq req;
         req.plan = plan;
-        hostSock.send(req);
+        try {
+            hostSock.send(req);
+        } catch (const exception &e) {
+            ERR("Failed to send xfr establish req: " << e.what());
+            throw;
+        }
 
         if (plan.file.type == FileRecord::Type::FILE) {
             ifstream f(this->root + req.plan.file.path, ifstream::binary);
@@ -124,7 +134,12 @@ public:
                 }
                 this->block.data.resize(f.gcount());
                 statusFn("Transfer - " + plan.file.path + " - " + to_string(f.tellg()) + " - send");
-                hostSock.send(this->block);
+                try {
+                    hostSock.send(this->block);
+                } catch (const exception &e) {
+                    ERR("Failed to send xfr block: " << e.what());
+                    throw;
+                }
                 StatusLine::Add("essentialOut", this->block.data.size());
             }
 
@@ -132,13 +147,23 @@ public:
             statusFn("Transfer - " + plan.file.path + " - " + to_string(f.tellg()) + " - empty-send");
             if (this->block.data.size() == MSG::XfrBlock::MAX_SIZE) {
                 this->block.data.resize(0);
-                hostSock.send(this->block);
+                try {
+                    hostSock.send(this->block);
+                } catch (const exception &e) {
+                    ERR("Failed to send empty xfr block: " << e.what());
+                    throw;
+                }
             }
 
             StatusLine::Add("filesOut", 1);
         } else if (plan.file.type == FileRecord::Type::SYMLINK) {
             this->block.data.resize(0);
-            hostSock.send(this->block);
+            try {
+                hostSock.send(this->block);
+            } catch (const exception &e) {
+                ERR("Failed to send symlink xfr block: " << e.what());
+                throw;
+            }
             StatusLine::Add("symlinksOut", 1);
         }
     }

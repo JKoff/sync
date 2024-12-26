@@ -43,47 +43,47 @@ void SyncServerProcess::main() {
 
         bool notDone = true;
 
-        try {
-            while (notDone) {
-                State st;
-                st.mode = ConnType::NEW;
-                st.remote = &remote;
-                st.deleted = 0;
-                st.receivedFiles = 0;
-                st.receivedSymlinks = 0;
-                st.receivedDirs = 0;
-                st.statusFn = [&st, &statusLine] (string str) {
-                    string modeStr;
-                    switch (st.mode) {
-                    case ConnType::NEW:
-                        modeStr = "NEW";
-                        break;
-                    case ConnType::SYNC:
-                        modeStr = "SYNC";
-                        break;
-                    case ConnType::XFR:
-                        modeStr = "XFR";
-                        break;
-                    }
-                    // LOG(
-                    //     "[del=" << st.deleted <<
-                    //     ", filesIn=" << st.receivedFiles <<
-                    //     ", dirsIn=" << st.receivedDirs << "]  " <<
-                    //     modeStr << " | " <<
-                    //     str
-                    // );
-                    STATUS(
-                        statusLine,
-                        "[del=" << st.deleted <<
-                        ", filesIn=" << st.receivedFiles <<
-                        ", dirsIn=" << st.receivedDirs << "]  " <<
-                        modeStr << " | " <<
-                        str
-                    );
-                };
+        while (notDone) {
+            State st;
+            st.mode = ConnType::NEW;
+            st.remote = &remote;
+            st.deleted = 0;
+            st.receivedFiles = 0;
+            st.receivedSymlinks = 0;
+            st.receivedDirs = 0;
+            st.statusFn = [&st, &statusLine] (string str) {
+                string modeStr;
+                switch (st.mode) {
+                case ConnType::NEW:
+                    modeStr = "NEW";
+                    break;
+                case ConnType::SYNC:
+                    modeStr = "SYNC";
+                    break;
+                case ConnType::XFR:
+                    modeStr = "XFR";
+                    break;
+                }
+                // LOG(
+                //     "[del=" << st.deleted <<
+                //     ", filesIn=" << st.receivedFiles <<
+                //     ", dirsIn=" << st.receivedDirs << "]  " <<
+                //     modeStr << " | " <<
+                //     str
+                // );
+                STATUS(
+                    statusLine,
+                    "[del=" << st.deleted <<
+                    ", filesIn=" << st.receivedFiles <<
+                    ", dirsIn=" << st.receivedDirs << "]  " <<
+                    modeStr << " | " <<
+                    str
+                );
+            };
 
-                st.statusFn("Idle");
+            st.statusFn("Idle");
 
+            try {
                 st.remote->awaitWithHandler([this, &st] (MSG::Type type, MSG::Base *msg) {
                     if (type == MSG::Type::SYNC_ESTABLISH_REQ) {
                         st.mode = ConnType::SYNC;
@@ -109,19 +109,35 @@ void SyncServerProcess::main() {
                         throw runtime_error("Expected establish message in SyncServerProcess session.");
                     }
                 }, chrono::seconds(3));
+            } catch (const exception &e) {
+                ERR("SyncServerProcess failed to establish"
+                    << " path=" << st.xfrPath
+                    << " target=" << st.xfrTargetPath
+                    << " type=" << st.xfrType
+                    << " what=" << e.what()
+                );
+                break;
+            }
 
-                st.statusFn("Established");
+            st.statusFn("Established");
 
+            try {
                 switch (st.mode) {
                 case ConnType::SYNC: notDone = this->syncLoop(st); break;
                 case ConnType::XFR: notDone = this->xfrLoop(st); break;
                 default: throw runtime_error("Connection in bad state.");
                 }
+            } catch (const exception &e) {
+                // Probably a network error. Peer disconnected, etc.
+                // For now, not worth mentioning since it happens under normal conditions.
+                ERR("SyncServerProcess failed in connection loop"
+                    << " path=" << st.xfrPath
+                    << " target=" << st.xfrTargetPath
+                    << " type=" << st.xfrType
+                    << " what=" << e.what()
+                );
+                break;
             }
-        } catch (const exception &e) {
-            // Probably a network error. Peer disconnected, etc.
-            // For now, not worth mentioning since it happens under normal conditions.
-            ERR("SyncServerProcess worker thread exception: " << e.what());
         }
     });
 }

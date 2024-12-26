@@ -16,6 +16,8 @@ void scanSingle(const string &path, function<void (const FileRecord&)> callback)
         // Sometimes a file is gone by the time we get to it, and that's fine.
         FileRecord filerec(FileRecord::Type::DOES_NOT_EXIST, NULL_HASH, path);
         callback(filerec);
+    } catch (const exception &e) {
+        throw runtime_error("Error while scanning " + path + ": " + e.what());
     }
 }
 

@@ -242,10 +242,14 @@ void Socket::receiveSome(char *buf, size_t neededIn) {
 
 		if (len == 0) {
 	    	// Connection closed by remote.
-	    	throw runtime_error("recv: Connection closed by remote.");
+			std::stringstream ss;
+			ss << "recv of " << neededIn << " bytes";
+	    	throw runtime_error(ss.str() + ": Connection closed by remote.");
 	    } else if (len == -1) {
 	    	// Error.
-	        throw system_error(errno, system_category(), "recv");   
+			std::stringstream ss;
+			ss << "recv of " << neededIn << " bytes";
+	        throw system_error(errno, system_category(), ss.str());
 	    }
 
 		received += len;
@@ -283,13 +287,23 @@ Socket::Frame Socket::receive(chrono::duration<uint64_t> timeout) {
 
 		// Receive and deserialize header
 
-		this->receiveSome(buf, enchdr.wireSize());
+		try {
+			this->receiveSome(buf, enchdr.wireSize());
+		} catch (const exception& e) {
+			ERR("Failed to receive encrypted header tv_sec=" << tv.tv_sec << " tv_usec=" << tv.tv_usec);
+			throw;
+		}
 		deserializeFromStream(buf, enchdr.wireSize(), enchdr);
 		assert(enchdr.size <= this->BUF_SIZE);
 
 		// Receive and decrypt body
 
-		this->receiveSome(buf, enchdr.size - enchdr.wireSize());
+		try {
+			this->receiveSome(buf, enchdr.size - enchdr.wireSize());
+		} catch (const exception& e) {
+			ERR("Failed to receive encrypted body tv_sec=" << tv.tv_sec << " tv_usec=" << tv.tv_usec);
+			throw;
+		}
 		Socket::socketCrypto.decrypt(
 			reinterpret_cast<const unsigned char *>(buf),
 			enchdr.size - enchdr.wireSize(),
@@ -382,6 +396,7 @@ void Socket::sendBuffer(const void *buffer, size_t length) const {
 	// encPacketStr contains {header(encryptedSize), encrypted(...)}
 
 	if (::send(this->sock, encPacketStr.data(), encPacketStr.size(), MSG_NOSIGNAL) != encPacketStr.size()) {
+		ERR("send of " << encPacketStr.size() << " bytes failed.");
         throw system_error(errno, system_category(), "send");
     }
 
