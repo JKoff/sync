@@ -91,6 +91,7 @@ int main(int argc, char **argv) {
         } else if (name == "exclude") {
             regex r(val);
             excludes.push_back(r);
+            LOG("Exclude " << val);
         }
     }
 
@@ -179,7 +180,7 @@ int main(int argc, char **argv) {
     // Get up to speed locally //
     /////////////////////////////
 
-    function<bool (const string &)> filterFn = bind(filterPath, ref(ROOT), ref(excludes), _1);
+    function<bool (const string &)> filterFn = bind(filterPath, ref(ROOT), excludes, _1);
 
     function<void (const FileRecord &)> updateFn = [&index, &filterFn] (const FileRecord &rec) {
         if (filterFn(rec.path)) {

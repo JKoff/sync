@@ -207,6 +207,12 @@ bool SyncServerProcess::syncLoop(State &st) {
 }
 
 void SyncServerProcess::receiveFile(State &st) {
+    // Create parent directories if necessary
+    string parent = st.xfrPath.substr(0, st.xfrPath.find_last_of("/"));
+    if (!std::filesystem::exists(parent)) {
+        std::filesystem::create_directories(parent);
+    }
+
     ofstream f(st.xfrPath, ios_base::trunc);
     if (f.fail()) {
         StatusLine::Add("fileWriteErr", 1);
@@ -232,6 +238,12 @@ void SyncServerProcess::receiveFile(State &st) {
 }
 
 void SyncServerProcess::receiveSymlink(State &st) {
+    // Create parent directories if necessary
+    string parent = st.xfrPath.substr(0, st.xfrPath.find_last_of("/"));
+    if (!std::filesystem::exists(parent)) {
+        std::filesystem::create_directories(parent);
+    }
+
     try {
         std::filesystem::create_symlink(st.xfrTargetPath, st.xfrPath);
     } catch (const exception &e) {
@@ -251,8 +263,9 @@ void SyncServerProcess::removeFile(const string &path) {
 bool SyncServerProcess::xfrLoop(State &st) {
     switch (st.xfrType) {
     case FileRecord::Type::DIRECTORY:
-        // TODO: Setting world-readable isn't necessarily what we need.
-        mkdir(st.xfrPath.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+        if (!std::filesystem::exists(st.xfrPath)) {
+            std::filesystem::create_directories(st.xfrPath);
+        }
 
         StatusLine::Add("dirsIn", 1);
         ++st.receivedDirs;
