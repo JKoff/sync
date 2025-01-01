@@ -395,6 +395,8 @@ void Socket::sendBuffer(const void *buffer, size_t length) const {
 
 	// encPacketStr contains {header(encryptedSize), encrypted(...)}
 
+	timeval tv = chronoToTimeval(chrono::seconds(10));
+	setsockopt(this->sock, SOL_SOCKET, SO_SNDTIMEO, (char*)&tv, sizeof(timeval));
 	if (::send(this->sock, encPacketStr.data(), encPacketStr.size(), MSG_NOSIGNAL) != encPacketStr.size()) {
 		ERR("send of " << encPacketStr.size() << " bytes failed.");
         throw system_error(errno, system_category(), "send");

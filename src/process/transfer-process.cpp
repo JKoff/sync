@@ -195,7 +195,7 @@ TransferProcess::TransferProcess(
 
 void TransferProcess::main() {
     // Set up pool of workers
-    size_t WORKERS_PER_PEER = 1;
+    size_t WORKERS_PER_PEER = 2;
     size_t npeers = this->peers.size();
     vector<TransferWorker> workers(WORKERS_PER_PEER * npeers);
     for (int i=0, n=workers.size(); i < n; i++) {
