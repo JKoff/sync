@@ -23,7 +23,7 @@ SYNC_REPLICA_OBJS=$(subst .c,.o,$(SYNC_C_SRCS)) $(subst .cpp,.o,$(SYNC_REPLICA_S
 
 SYNC_CTL_SRCS=$(wildcard src/sync-ctl.cpp \
 	src/net/unix-client.cpp src/net/socket.cpp src/net/protocol.cpp \
-	src/fs/types.cpp \
+	src/net/protocol-interface.cpp src/fs/types.cpp \
 	src/util.cpp src/util/*.cpp)
 SYNC_CTL_OBJS=$(subst .c,.o,$(SYNC_C_SRCS)) $(subst .cpp,.o,$(SYNC_CTL_SRCS))
 

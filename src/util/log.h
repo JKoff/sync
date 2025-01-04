@@ -28,6 +28,23 @@
 	log(_ss, std::cerr, true); \
 }
 
+#define LOG_EXCEPTION(x, add_to_stream) { \
+	std::stringstream _ss; \
+	_ss << __FILE__ << ":" << __LINE__ << "(" << add_to_stream << ")" << " > "; \
+	nested_exception_to_stream(x, _ss, 0); \
+	log(_ss, std::cerr, true); \
+}
+
+#define RETHROW_NESTED(x, add_to_stream) {\
+	try { \
+		x; \
+	} catch (...) { \
+		std::stringstream _ss; \
+		_ss << __FILE__ << ":" << __LINE__ << "(" << add_to_stream << ")" << " > "; \
+		std::throw_with_nested(std::runtime_error(_ss.str())); \
+	} \
+}
+
 void logSilent(bool isSilent);
 
 // Tags current thread for logging purposes.
@@ -36,6 +53,8 @@ void logTag(std::string tag);
 void log(const std::stringstream &ss, std::ostream &stream, bool isUrgent=false);
 
 void logbuf(const void *buf, size_t len, std::ostream &stream);
+
+void nested_exception_to_stream(const std::exception &e, std::ostream &stream, int level);
 
 
 ////////////////

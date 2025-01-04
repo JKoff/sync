@@ -167,7 +167,10 @@ public:
 
 		Packet packet = { MSG::Factory::EnumType<T>(), message.data(), message.size() };
 		string packetStr = packet.toString();
-		this->sendBuffer(packetStr.data(), packetStr.size());
+		RETHROW_NESTED(
+			this->sendBuffer(packetStr.data(), packetStr.size()),
+			"sending " << MSG::Factory::EnumType<T>()
+		);
 	}
 
 	void awaitWithHandler(
@@ -181,7 +184,8 @@ public:
 		MSG::Type type,
 		chrono::duration<uint64_t> timeout=chrono::seconds(30)
 	) {
-		Frame frame = this->receive(timeout);
+		Frame frame;
+		RETHROW_NESTED(frame = this->receive(timeout), "awaitWithType " << type);
 		T *castedSub = dynamic_cast<T*>(frame.message.release());
 		return unique_ptr<T>(castedSub);
 	}

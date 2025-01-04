@@ -287,23 +287,19 @@ Socket::Frame Socket::receive(chrono::duration<uint64_t> timeout) {
 
 		// Receive and deserialize header
 
-		try {
-			this->receiveSome(buf, enchdr.wireSize());
-		} catch (const exception& e) {
-			ERR("Failed to receive encrypted header tv_sec=" << tv.tv_sec << " tv_usec=" << tv.tv_usec);
-			throw;
-		}
+		RETHROW_NESTED(
+			this->receiveSome(buf, enchdr.wireSize()),
+			"Receiving encrypted header tv_sec=" << tv.tv_sec << " tv_usec=" << tv.tv_usec
+		);
 		deserializeFromStream(buf, enchdr.wireSize(), enchdr);
 		assert(enchdr.size <= this->BUF_SIZE);
 
 		// Receive and decrypt body
 
-		try {
-			this->receiveSome(buf, enchdr.size - enchdr.wireSize());
-		} catch (const exception& e) {
-			ERR("Failed to receive encrypted body tv_sec=" << tv.tv_sec << " tv_usec=" << tv.tv_usec);
-			throw;
-		}
+		RETHROW_NESTED(
+			this->receiveSome(buf, enchdr.size - enchdr.wireSize()),
+			"Failed to receive encrypted body tv_sec=" << tv.tv_sec << " tv_usec=" << tv.tv_usec
+		);
 		Socket::socketCrypto.decrypt(
 			reinterpret_cast<const unsigned char *>(buf),
 			enchdr.size - enchdr.wireSize(),
@@ -398,7 +394,6 @@ void Socket::sendBuffer(const void *buffer, size_t length) const {
 	timeval tv = chronoToTimeval(chrono::seconds(10));
 	setsockopt(this->sock, SOL_SOCKET, SO_SNDTIMEO, (char*)&tv, sizeof(timeval));
 	if (::send(this->sock, encPacketStr.data(), encPacketStr.size(), MSG_NOSIGNAL) != encPacketStr.size()) {
-		ERR("send of " << encPacketStr.size() << " bytes failed.");
         throw system_error(errno, system_category(), "send");
     }
 

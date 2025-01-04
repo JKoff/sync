@@ -444,3 +444,14 @@ void logTag(string tag) {
 	lock_guard<mutex> lock(logMutex);
 	threadTags[this_thread::get_id()] = tag;
 }
+
+void nested_exception_to_stream(const std::exception &e, std::ostream &stream, int level) {
+	// stream << std::string(level, ' ') << e.what() << endl;
+	stream << e.what();
+	try {
+		rethrow_if_nested(e);
+	} catch (const exception &nested) {
+		stream << " > ";
+		nested_exception_to_stream(nested, stream, level + 1);
+	}
+}

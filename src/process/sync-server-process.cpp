@@ -39,105 +39,79 @@ SyncServerProcess::SyncServerProcess(
 
 void SyncServerProcess::main() {
     InetServer srv(this->host, this->port, [this] (Socket &remote) {
-        StatusLine statusLine("SyncServerProcess worker");
+        try {
+            StatusLine statusLine("SyncServerProcess worker");
 
-        bool notDone = true;
+            bool notDone = true;
 
-        while (notDone) {
-            State st;
-            st.mode = ConnType::NEW;
-            st.remote = &remote;
-            st.deleted = 0;
-            st.receivedFiles = 0;
-            st.receivedSymlinks = 0;
-            st.receivedDirs = 0;
-            st.statusFn = [&st, &statusLine] (string str) {
-                string modeStr;
+            while (notDone) {
+                State st;
+                st.mode = ConnType::NEW;
+                st.remote = &remote;
+                st.deleted = 0;
+                st.receivedFiles = 0;
+                st.receivedSymlinks = 0;
+                st.receivedDirs = 0;
+                st.statusFn = [&st, &statusLine] (string str) {
+                    string modeStr;
+                    switch (st.mode) {
+                    case ConnType::NEW:
+                        modeStr = "NEW";
+                        break;
+                    case ConnType::SYNC:
+                        modeStr = "SYNC";
+                        break;
+                    case ConnType::XFR:
+                        modeStr = "XFR";
+                        break;
+                    }
+                    STATUS(
+                        statusLine,
+                        "[del=" << st.deleted <<
+                        ", filesIn=" << st.receivedFiles <<
+                        ", dirsIn=" << st.receivedDirs << "]  " <<
+                        modeStr << " | " <<
+                        str
+                    );
+                };
+
+                st.statusFn("Idle");
+
+                RETHROW_NESTED({
+                    st.remote->awaitWithHandler([this, &st] (MSG::Type type, MSG::Base *msg) {
+                        if (type == MSG::Type::SYNC_ESTABLISH_REQ) {
+                            st.mode = ConnType::SYNC;
+                            logTag("sync");
+                        } else if (type == MSG::Type::XFR_ESTABLISH_REQ) {
+                            MSG::XfrEstablishReq *req = dynamic_cast<MSG::XfrEstablishReq*>(msg);
+
+                            st.mode = ConnType::XFR;
+                            logTag("xfr");
+                            st.xfrPath = root + req->plan.file.path;
+                            st.xfrTargetPath = req->plan.file.targetPath;
+                            st.xfrType = (FileRecord::Type)(req->plan.file.type);
+                        } else {
+                            stringstream ss;
+                            ss << "Unknown message " << static_cast<int>(type) << " in SyncServerProcess session, expected establish message.";
+                            throw runtime_error(ss.str());
+                        }
+                    }, chrono::seconds(60));
+                }, "Waiting for establish request");
+
+                st.statusFn("Established");
+
                 switch (st.mode) {
-                case ConnType::NEW:
-                    modeStr = "NEW";
-                    break;
                 case ConnType::SYNC:
-                    modeStr = "SYNC";
+                    RETHROW_NESTED(notDone = this->syncLoop(st), "syncLoop" << " path=" << st.xfrPath << " target=" << st.xfrTargetPath << " type=" << st.xfrType);
                     break;
                 case ConnType::XFR:
-                    modeStr = "XFR";
+                    RETHROW_NESTED(notDone = this->xfrLoop(st), "xfrLoop" << " path=" << st.xfrPath << " target=" << st.xfrTargetPath << " type=" << st.xfrType);
                     break;
-                }
-                // LOG(
-                //     "[del=" << st.deleted <<
-                //     ", filesIn=" << st.receivedFiles <<
-                //     ", dirsIn=" << st.receivedDirs << "]  " <<
-                //     modeStr << " | " <<
-                //     str
-                // );
-                STATUS(
-                    statusLine,
-                    "[del=" << st.deleted <<
-                    ", filesIn=" << st.receivedFiles <<
-                    ", dirsIn=" << st.receivedDirs << "]  " <<
-                    modeStr << " | " <<
-                    str
-                );
-            };
-
-            st.statusFn("Idle");
-
-            try {
-                st.remote->awaitWithHandler([this, &st] (MSG::Type type, MSG::Base *msg) {
-                    if (type == MSG::Type::SYNC_ESTABLISH_REQ) {
-                        st.mode = ConnType::SYNC;
-                        logTag("sync");
-                    } else if (type == MSG::Type::XFR_ESTABLISH_REQ) {
-                        MSG::XfrEstablishReq *req = dynamic_cast<MSG::XfrEstablishReq*>(msg);
-
-                        st.mode = ConnType::XFR;
-                        logTag("xfr");
-                        st.xfrPath = root + req->plan.file.path;
-                        st.xfrTargetPath = req->plan.file.targetPath;
-                        st.xfrType = (FileRecord::Type)(req->plan.file.type);
-
-                        /*assert(req->plan.value == this->host);
-
-                        for (const Tree<PolicyHost> &fwdTree : req->plan.children) {
-                            PolicyPlan fwdPlan = { req->plan.file, fwdTree };
-                            // TODO: Send
-                            ERR("Plan forwarding not implemented yet.");
-                            exit(0);
-                        }*/
-                    } else {
-                        throw runtime_error("Expected establish message in SyncServerProcess session.");
-                    }
-                }, chrono::seconds(3));
-            } catch (const exception &e) {
-                ERR("SyncServerProcess failed to establish"
-                    << " path=" << st.xfrPath
-                    << " target=" << st.xfrTargetPath
-                    << " type=" << st.xfrType
-                    << " what=" << e.what()
-                );
-                break;
-            }
-
-            st.statusFn("Established");
-
-            try {
-                switch (st.mode) {
-                case ConnType::SYNC: notDone = this->syncLoop(st); break;
-                case ConnType::XFR: notDone = this->xfrLoop(st); break;
                 default: throw runtime_error("Connection in bad state.");
                 }
-            } catch (const exception &e) {
-                // Probably a network error. Peer disconnected, etc.
-                // For now, not worth mentioning since it happens under normal conditions.
-                ERR("SyncServerProcess failed in connection loop"
-                    << " path=" << st.xfrPath
-                    << " target=" << st.xfrTargetPath
-                    << " type=" << st.xfrType
-                    << " what=" << e.what()
-                );
-                break;
             }
+        } catch (const exception &e) {
+            LOG_EXCEPTION(e, "SyncServiceProcess socket handler");
         }
     });
 }
@@ -219,9 +193,7 @@ void SyncServerProcess::receiveFile(State &st) {
         throw runtime_error("Failed to open file " + st.xfrPath);
     }
 
-    bool done = false;
-
-    while (!done) {
+    for (;;) {
         unique_ptr<MSG::XfrBlock> block =
             st.remote->awaitWithType<MSG::XfrBlock>(MSG::Type::XFR_BLOCK);
 
@@ -232,7 +204,7 @@ void SyncServerProcess::receiveFile(State &st) {
         }
 
         if (block->data.size() < MSG::XfrBlock::MAX_SIZE) {
-            done = true;
+            break;
         }
     }
 }
@@ -267,10 +239,18 @@ bool SyncServerProcess::xfrLoop(State &st) {
             std::filesystem::create_directories(st.xfrPath);
         }
 
+        if (access(st.xfrPath.c_str(), W_OK) != 0) {
+            throw runtime_error("No write permissions to directory: " + st.xfrPath);
+        }
+
         StatusLine::Add("dirsIn", 1);
         ++st.receivedDirs;
         break;
     case FileRecord::Type::DOES_NOT_EXIST:
+        if (access(st.xfrPath.c_str(), W_OK) != 0) {
+            throw runtime_error("No permissions to delete directory: " + st.xfrPath);
+        }
+
         this->removeFile(st.xfrPath);
 
         StatusLine::Add("del", 1);

@@ -28,7 +28,7 @@ SyncClientProcess::SyncClientProcess(
                 this->main();
             } catch (const exception &e) {
                 STATUS(this->status, e.what());
-                LOG("SyncClientProcess: " << e.what());
+                LOG_EXCEPTION(e, "SyncClientProcess main loop");
                 
                 // Probably a network error.
                 this_thread::sleep_for(chrono::seconds(10));
@@ -49,10 +49,10 @@ void SyncClientProcess::main() {
         Message msg = this->peek();
         switch (msg.type) {
         case MT::FULLSYNC:
-            this->performFullsync();
+            RETHROW_NESTED(this->performFullsync(), "SyncClientProcess::main.FULLSYNC");
             break;
         case MT::INFO:
-            this->reply(msg.refid, this->performInfo());
+            RETHROW_NESTED(this->reply(msg.refid, this->performInfo()), "SyncClientProcess::main.FULLSYNC");
             break;
         }
         this->consume();
@@ -107,13 +107,19 @@ void SyncClientProcess::performFullsync() {
             if (req.queries.size() == MSG::DiffReq::MAX_RECORDS) {
                 queryCtr += req.queries.size();
                 StatusLine::Add("client queries", req.queries.size());
-                remote.send(req);
+                RETHROW_NESTED(
+                    remote.send(req),
+                    "sending DIFF_REQ"
+                )
                 
                 req.queries.clear();
 
                 updateStats("<--");
 
-                resp = remote.awaitWithType<MSG::DiffResp>(MSG::Type::DIFF_RESP);
+                RETHROW_NESTED(
+                    resp = remote.awaitWithType<MSG::DiffResp>(MSG::Type::DIFF_RESP),
+                    "awaiting DIFF_RESP"
+                );
                 for (const auto &answer : resp->answers) {
                     result.push_back(answer.path);
                 }
@@ -127,9 +133,15 @@ void SyncClientProcess::performFullsync() {
         if (req.queries.size() > 0) {
             queryCtr += req.queries.size();
             StatusLine::Add("client queries", req.queries.size());
-            remote.send(req);
+            RETHROW_NESTED(
+                remote.send(req),
+                "sending final DIFF_REQ"
+            );
 
-            resp = remote.awaitWithType<MSG::DiffResp>(MSG::Type::DIFF_RESP);
+            RETHROW_NESTED(
+                resp = remote.awaitWithType<MSG::DiffResp>(MSG::Type::DIFF_RESP),
+                "awaiting final DIFF_RESP"
+            );
             for (const auto &answer : resp->answers) {
                 result.push_back(answer.path);
             }

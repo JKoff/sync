@@ -85,4 +85,6 @@ namespace MSG {
 	};
 }
 
+std::ostream& operator<<(std::ostream &stream, const MSG::Type &type);
+
 #endif
