@@ -28,14 +28,12 @@ CommandProcess::CommandProcess(
         StatusLine statusLine("Command");
         STATUS(statusLine, "Good to go.");
 
-        for (;;) {
-            try {
-                this->main();
-            } catch (const exception &e) {
-                // Under no circumstance should a secondary process such as this one
-                // interrupt execution of the program.
-                ERR("Command thread: " << e.what());
-            }
+        try {
+            this->main();
+        } catch (const exception &e) {
+            // Under no circumstance should a secondary process such as this one
+            // interrupt execution of the program.
+            ERR("Command thread: " << e.what());
         }
     });
 }
