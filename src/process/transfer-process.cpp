@@ -108,6 +108,11 @@ public:
         //     return;
         // }
 
+        if (!std::filesystem::exists(this->root + plan.file.path)) {
+            StatusLine::Add("fileGone", 1);
+            return;
+        }
+
         MSG::XfrEstablishReq req;
         req.plan = plan;
         RETHROW_NESTED(hostSock.send(req), "transfer");
