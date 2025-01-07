@@ -247,38 +247,43 @@ int main(int argc, char **argv) {
         StatusLine statusLine("AAE");
         std::string status = "pending";
         while (!stop_requested.load()) {
-            STATUS(statusLine, "sleep " + status);
-            this_thread::sleep_for(chrono::seconds(1));
+            try {
+                STATUS(statusLine, "sleep " + status);
+                this_thread::sleep_for(chrono::seconds(1));
 
-            // This won't entirely prevent race conditions.
-            // That said, copying a file twice will usually be a low-impact
-            // glitch, and the window should be fairly small.
-            STATUS(statusLine, "wait-policy-empty " + status);
-            policy.waitUntilEmpty();
+                // This won't entirely prevent race conditions.
+                // That said, copying a file twice will usually be a low-impact
+                // glitch, and the window should be fairly small.
+                STATUS(statusLine, "wait-policy-empty " + status);
+                policy.waitUntilEmpty();
 
-            STATUS(statusLine, "wait-xfr-zero " + status);
-            transferProc.xfrCounter.waitUntilZero();
+                STATUS(statusLine, "wait-xfr-zero " + status);
+                transferProc.xfrCounter.waitUntilZero();
 
-            STATUS(statusLine, "metadata " + status);
-            bool anyDiscrepancies = false;
-            for (auto &replica : syncThreads) {
-                MSG::InfoResp remoteResp = replica->callInfo();
+                STATUS(statusLine, "metadata " + status);
+                bool anyDiscrepancies = false;
+                for (auto &replica : syncThreads) {
+                    MSG::InfoResp remoteResp = replica->callInfo();
 
-                stringstream ss;
-                for (const auto &payload : remoteResp.payloads) {
-                    ss << payload.instanceId << " " << payload.status << " " << payload.filesIndexed << " " << payload.hash << " | " << endl;
-                    if (payload.hash != index.hash()) {
-                        anyDiscrepancies = true;
+                    stringstream ss;
+                    for (const auto &payload : remoteResp.payloads) {
+                        ss << payload.instanceId << " " << payload.status << " " << payload.filesIndexed << " " << payload.hash << " | " << endl;
+                        if (payload.hash != index.hash()) {
+                            anyDiscrepancies = true;
+                        }
+                    }
+                    status = ss.str();
+                }
+
+                if (anyDiscrepancies) {
+                    STATUS(statusLine, "cast " + status);
+                    for (auto &replica : syncThreads) {
+                        replica->castFullsync();
                     }
                 }
-                status = ss.str();
-            }
-
-            if (anyDiscrepancies) {
-                STATUS(statusLine, "cast " + status);
-                for (auto &replica : syncThreads) {
-                    replica->castFullsync();
-                }
+            } catch (const exception &e) {
+                STATUS(statusLine, e.what());
+                LOG_EXCEPTION(e, "AAE");
             }
         }
     });
