@@ -13,7 +13,7 @@ bool filterPath(const std::filesystem::path &root, const vector<wregex> excludes
         return true;
     }
 
-    wstring relpath = std::filesystem::relative(path, root).wstring();
+    wstring relpath = path.lexically_relative(root).wstring();
 
     for (const wregex &r : excludes) {
         if (regex_search(relpath, r)) {

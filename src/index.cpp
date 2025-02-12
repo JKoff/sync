@@ -34,7 +34,7 @@ size_t Index::size() {
 void Index::update(const FileRecord &rec) {
 	lock_guard<recursive_mutex> lock(this->stateMutex);
 
-	Relpath path = std::filesystem::relative(rec.path, this->root);
+	Relpath path = rec.path.lexically_relative(this->root);
 	if (path.empty()) {
 		// Just ignore it...
 		return;
@@ -65,7 +65,9 @@ void Index::update(const FileRecord &rec) {
 	case FileRecord::Type::FILE:
 	case FileRecord::Type::DIRECTORY:
 	case FileRecord::Type::SYMLINK:
-		// LOG("Updating " << path << " with hash " << rec.version << " under parent " << parent);
+		// if (rand() % 100 == 0) {
+		// 	LOG("Updating " << path << " with version " << rec.version << " and original path " << rec.path);
+		// }
 		this->paths[path].mode = rec.mode;
 		this->paths[path].version = rec.version;
 		this->paths[path].targetPath = rec.targetPath;  // only used by symlinks
@@ -119,8 +121,32 @@ void Index::diff(
 
 	// For each level
 	while (!seen.empty()) {
+		std::map<Relpath, int> tests; // 1 if diff was EQUIVALENT, 0 if diff was DIFFERENT
+		for (Relpath path : seen) {
+			tests[path]++;
+		}
+
 		// We need to filter seen to only contain paths that failed diff.
 		seen = oracleFn(seen);
+
+		for (Relpath path : seen) {
+			tests[path]--;
+		}
+		
+		for (const auto& [path, val] : tests) {
+			if (val == 0) {
+				// diff is DIFFERENT
+				this->repeatOffenders[path]++;
+			} else {
+				// diff is EQUIVALENT
+				this->repeatOffenders.erase(path);
+			}
+		}
+
+		LOG("The following files failed diff more than once in a row: ");
+		for (const auto& [path, val] : this->repeatOffenders) {
+			LOG("  " << path << " failed " << val << " times.");
+		}
 
 		// processing is empty
 		swap(processing, seen);

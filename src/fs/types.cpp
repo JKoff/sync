@@ -46,8 +46,7 @@ FileRecord::FileRecord(const File &f) {
         version = f.hash();
     } else if (std::filesystem::is_symlink(f.statbuf)) {
         type = Type::SYMLINK;
-        std::filesystem::path symlinkPath(f.path);
-        this->targetPath = std::filesystem::read_symlink(symlinkPath);
+        this->targetPath = std::filesystem::read_symlink(f.path);
         version = HashString(this->targetPath.string());
     } else {
         throw runtime_error("Unknown stat type.");

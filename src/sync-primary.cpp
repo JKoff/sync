@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
             if (filterFn(rec.path)) {
                 index.update(rec);
 
-                Relpath path = std::filesystem::relative(rec.path, ROOT);
+                Relpath path = rec.path.lexically_relative(ROOT);
                 PolicyFile file = { path, rec.targetPath, rec.type };
                 for (auto policyHost : policyHosts) {
                     transferProc.castTransfer(policyHost, file);

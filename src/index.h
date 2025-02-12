@@ -80,6 +80,7 @@ private:
 	std::map<Relpath, IndexEntry> paths;
 	std::recursive_mutex stateMutex;
 	bool rebuildInProgress = false;
+	std::map<Relpath, int> repeatOffenders;
     //leveldb::DB* db;
 };
 

@@ -182,7 +182,7 @@ bool SyncServerProcess::syncLoop(State &st) {
 
 void SyncServerProcess::receiveFile(State &st) {
     // Create parent directories if necessary
-    std::filesystem::path parent = std::filesystem::relative("..", st.xfrPath);
+    std::filesystem::path parent = st.xfrPath.parent_path();
     if (!std::filesystem::exists(parent)) {
         std::filesystem::create_directories(parent);
     }
@@ -211,7 +211,7 @@ void SyncServerProcess::receiveFile(State &st) {
 
 void SyncServerProcess::receiveSymlink(State &st) {
     // Create parent directories if necessary
-    std::filesystem::path parent = std::filesystem::relative("..", st.xfrPath);
+    std::filesystem::path parent = st.xfrPath.parent_path();
     if (!std::filesystem::exists(parent)) {
         std::filesystem::create_directories(parent);
     }
