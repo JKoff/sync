@@ -13,8 +13,8 @@
 //////////////////
 
 typedef uint64_t HashT;
-typedef std::string Relpath;
-typedef std::string Abspath;
+typedef std::filesystem::path Relpath;
+typedef std::filesystem::path Abspath;
 const HashT NULL_HASH = 0;
 
 class File;
@@ -29,16 +29,17 @@ public:
 	};
 
 	FileRecord(const File &f);
-	FileRecord(Type type, HashT version, Abspath path, mode_t mode=0);
+	FileRecord(Type type, HashT version, Abspath path, std::filesystem::perms mode=std::filesystem::perms::none);
 
 	Type type;
-	mode_t mode;
+	std::filesystem::perms mode;
 	HashT version;
 	Abspath path;
 	std::filesystem::path targetPath;  // only for symlinks
 };
 
 std::ostream& operator<<(std::ostream &os, const FileRecord::Type &type);
+std::wostream& operator<<(std::wostream &os, const FileRecord::Type &type);
 
 void serialize(std::ostream &stream, const FileRecord::Type &val);
 void deserialize(std::istream &stream, FileRecord::Type &val);
@@ -46,7 +47,6 @@ void deserialize(std::istream &stream, FileRecord::Type &val);
 
 class Directory {
 	bool exhausted;
-	DIR *d;
 public:
 	Directory() = delete;
 	Directory(const Directory &that) = delete;
@@ -54,25 +54,20 @@ public:
 
 	Directory(const File &f);
 	~Directory();
-	void forEach(std::function<void (struct dirent*)> f);
+	void forEach(std::function<void (const std::filesystem::directory_entry&)> f);
 	void remove();
 
-	std::string path;
-
+	std::filesystem::path path;
 };
 
 class File {
-	void init(std::string path);
+	void init(const std::filesystem::path& path);
 public:
 	File() = delete;
 	File(const File &that) = delete;
 	File& operator=(const File &that) = delete;
 
-	// absolute constructor
-	File(const char *path);
-	File(const std::string &path);
-	// relative constructor
-	File(const Directory &dir, const char *name);
+	File(const std::filesystem::path& path);
 
 	HashT hash() const;
 	bool isDir() const;
@@ -82,8 +77,9 @@ public:
 	~File();
 
 	// int fd;
-	std::string path;
-    struct stat statbuf;
+	// std::wstring path;
+	std::filesystem::path path;
+    std::filesystem::file_status statbuf;
 };
 
 

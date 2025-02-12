@@ -74,10 +74,10 @@ void SyncClientProcess::performFullsync() {
 
     Socket remote = this->connect();
 
-	this->index->diff([this,epoch,&remote] (const deque<string>& seen) {
+	this->index->diff([this,epoch,&remote] (const deque<std::filesystem::path>& seen) {
         // Oracle function
 
-        deque<string> result;
+        deque<std::filesystem::path> result;
 
         // Stats for progress indication
         uint64_t queryCtr = 0;
@@ -92,7 +92,7 @@ void SyncClientProcess::performFullsync() {
         };
 
         // Let's check in with the remote.
-        deque<string> sent(seen);
+        deque<std::filesystem::path> sent(seen);
         MSG::DiffReq req;
         unique_ptr<MSG::DiffResp> resp;
         req.epoch = epoch;

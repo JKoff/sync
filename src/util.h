@@ -2,6 +2,7 @@
 #define UTIL_H
 
 #include <list>
+#include <filesystem>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -9,18 +10,9 @@
 
 // Returns list of tokens delimited by delim.
 std::vector<std::string> tokenize(std::string str, char delim);
+std::vector<std::wstring> tokenize(std::wstring str, wchar_t delim);
 
-// Returns (parent, child) pairs
-// These pairs must go from nested-est to least nested.
-std::list<std::pair<std::string,std::string>> pathParents(const std::string &path);
-
-// Has the pre-condition that path has a parent
-std::string pathParent(const std::string &path);
-
-// Filename
-std::string filename(const std::string &path);
-
-// Wrapper to realpath(3)
-std::string realpath(const std::string &path);
+// Takes a relative path, and returns parents nested-est to least nested, e.g. [a/b/c, a/b, a]
+std::list<std::filesystem::path> pathParents(const std::filesystem::path &path);
 
 #endif

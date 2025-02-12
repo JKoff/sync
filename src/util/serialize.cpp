@@ -1,7 +1,8 @@
 #include "serialize.h"
 
 #include <cassert>
-
+#include <filesystem>
+#include <sys/stat.h>
 
 template <typename T>
 void serializeInteger(std::ostream &stream, const T &val) {
@@ -110,6 +111,36 @@ void deserialize(std::istream &stream, std::string &str) {
     swap(str, s);
 }
 
+void serialize(std::ostream &stream, const std::wstring &str) {
+	uint32_t sz = str.size();
+	serialize(stream, sz);
+	
+	if (sz > 0) {
+		stream.write(reinterpret_cast<const char*>(str.data()), sz * sizeof(wchar_t));
+	}
+}
+
+void deserialize(std::istream &stream, std::wstring &str) {
+	uint32_t sz;
+	deserialize(stream, sz);
+
+	std::wstring s(sz, L' ');
+	if (sz > 0) {
+		stream.read(reinterpret_cast<char*>(&(*s.begin())), sz * sizeof(wchar_t));
+	}
+	swap(str, s);
+}
+
+void serialize(std::ostream &stream, const std::filesystem::path &path) {
+	serialize(stream, path.string());
+}
+
+void deserialize(std::istream &stream, std::filesystem::path &path) {
+	std::string str;
+	deserialize(stream, str);
+	path = std::filesystem::path(str);
+}
+
 void serialize(std::ostream &stream, const MSG::Type &type) {
 	serialize(stream, static_cast<uint8_t>(type));
 }
@@ -118,6 +149,43 @@ void deserialize(std::istream &stream, MSG::Type &type) {
 	uint8_t tmp;
 	deserialize(stream, tmp);
 	type = static_cast<MSG::Type>(tmp);
+}
+
+void serialize(std::ostream &stream, const std::filesystem::perms &p) {
+	mode_t mode = 0;
+
+    if ((p & std::filesystem::perms::owner_read) != std::filesystem::perms::none) mode |= S_IRUSR;
+    if ((p & std::filesystem::perms::owner_write) != std::filesystem::perms::none) mode |= S_IWUSR;
+    if ((p & std::filesystem::perms::owner_exec) != std::filesystem::perms::none) mode |= S_IXUSR;
+
+    if ((p & std::filesystem::perms::group_read) != std::filesystem::perms::none) mode |= S_IRGRP;
+    if ((p & std::filesystem::perms::group_write) != std::filesystem::perms::none) mode |= S_IWGRP;
+    if ((p & std::filesystem::perms::group_exec) != std::filesystem::perms::none) mode |= S_IXGRP;
+
+    if ((p & std::filesystem::perms::others_read) != std::filesystem::perms::none) mode |= S_IROTH;
+    if ((p & std::filesystem::perms::others_write) != std::filesystem::perms::none) mode |= S_IWOTH;
+    if ((p & std::filesystem::perms::others_exec) != std::filesystem::perms::none) mode |= S_IXOTH;
+
+	serialize(stream, static_cast<uint8_t>(mode));
+}
+
+void deserialize(std::istream &stream, std::filesystem::perms &p) {
+	uint8_t mode;
+	deserialize(stream, mode);
+
+	p = std::filesystem::perms::none;
+
+    if (mode & S_IRUSR) p |= std::filesystem::perms::owner_read;
+    if (mode & S_IWUSR) p |= std::filesystem::perms::owner_write;
+    if (mode & S_IXUSR) p |= std::filesystem::perms::owner_exec;
+
+    if (mode & S_IRGRP) p |= std::filesystem::perms::group_read;
+    if (mode & S_IWGRP) p |= std::filesystem::perms::group_write;
+    if (mode & S_IXGRP) p |= std::filesystem::perms::group_exec;
+
+    if (mode & S_IROTH) p |= std::filesystem::perms::others_read;
+    if (mode & S_IWOTH) p |= std::filesystem::perms::others_write;
+    if (mode & S_IXOTH) p |= std::filesystem::perms::others_exec;
 }
 
 void serialize(std::ostream &stream, const std::vector<uint8_t> &vec) {

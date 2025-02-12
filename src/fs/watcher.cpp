@@ -24,14 +24,14 @@ void eventCallback(
     Watcher *watcher = reinterpret_cast<Watcher*>(clientCallBackInfo);
     char **paths = reinterpret_cast<char **>(eventPaths);
     for (size_t i = 0; i < numEvents; i++) {
-        watcher->onEvent(paths[i]);
+        watcher->onEvent(std::filesystem::path(paths[i], paths[i] + strlen(paths[i])));
     }
 }
 
-Watcher::Watcher(const std::string &root, std::function<void (const FileRecord &rec)> callback)
+Watcher::Watcher(const std::filesystem::path &root, std::function<void (const FileRecord &rec)> callback)
     : callback(callback) {
     FSEventStreamContext context = {0, this, NULL, NULL, NULL};
-    CFStringRef mypath = CFStringCreateWithCString(NULL, root.c_str(), kCFStringEncodingUTF8);
+    CFStringRef mypath = CFStringCreateWithCString(NULL, root.string().c_str(), kCFStringEncodingUTF8);
     CFArrayRef pathsToWatch = CFArrayCreate(NULL, (const void **)&mypath, 1, NULL);
     FSEventStreamRef stream = FSEventStreamCreate(NULL,
                                                   &eventCallback,
@@ -75,11 +75,11 @@ Watcher::~Watcher() {
 	}
 }
 
-void Watcher::onEvent(const std::string& path) {
+void Watcher::onEvent(const std::filesystem::path& path) {
     scanSingle(path, callback);
 }
 #else
-Watcher::Watcher(const string &root, std::function<void (const FileRecord &rec)> callback) { }
+Watcher::Watcher(const std::filesystem::path &root, std::function<void (const FileRecord &rec)> callback) { }
 Watcher::~Watcher() { }
-void Watcher::onEvent(const std::string& path) { }
+void Watcher::onEvent(const std::filesystem::path& path) { }
 #endif

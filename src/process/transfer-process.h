@@ -59,7 +59,7 @@ private:
 class TransferProcess : public Process<TransferProcessMessageType> {
 public:
 	TransferProcess(
-		const std::string &root, const PolicyHost &us, Policy &policy,
+		const std::filesystem::path &root, const PolicyHost &us, Policy &policy,
 		const std::vector<PolicyHost> &peers
 	);
 
@@ -78,7 +78,7 @@ private:
 	void performTransfer(const PolicyHost &host, const PolicyFile &file);
 	MSG::InfoResp performInfo();
 
-	std::string root;
+	std::filesystem::path root;
 	Policy *policy;
 	PolicyHost us;
 	std::vector<PolicyHost> peers;

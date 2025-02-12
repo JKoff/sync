@@ -37,8 +37,8 @@ class SyncServerProcess : public Process<SyncServerProcessMessageType> {
 		std::function<void (std::string)> statusFn;
 
 		// XFR mode only
-		std::string xfrPath;
-		std::string xfrTargetPath;  // for symlinks only
+		std::filesystem::path xfrPath;
+		std::filesystem::path xfrTargetPath;  // for symlinks only
 		FileRecord::Type xfrType;
 
 		// Stats
@@ -51,7 +51,7 @@ class SyncServerProcess : public Process<SyncServerProcessMessageType> {
 public:
 	SyncServerProcess(
 		const std::string &host, const std::string &port,
-		const std::string &root,
+		const std::filesystem::path &root,
 		Index &index, const std::string &instanceId);
 private:
 	/////////////////////////////////////////
@@ -64,9 +64,10 @@ private:
 	// Helpers
 	void receiveFile(State &st);
 	void receiveSymlink(State &st);
-	void removeFile(const std::string &path);
+	void removeFile(const std::filesystem::path &path);
 
-	std::string host, port, root, instanceId;
+	std::string host, port, instanceId;
+	std::filesystem::path root;
 	Index *index;
 };
 

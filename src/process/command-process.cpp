@@ -93,9 +93,9 @@ void CommandProcess::main() {
                     resp.path = req->path;
                     resp.hash = this->index->hash(req->path);
 
-                    set<string> children = this->index->children(req->path);
-                    for (const string &child : children) {
-                        resp.children.push_back({ child, this->index->hash(child) });
+                    set<std::filesystem::path> children = this->index->children(std::filesystem::path(req->path));
+                    for (const std::filesystem::path &child : children) {
+                        resp.children.push_back({ child.string(), this->index->hash(child) });
                     }
 
                     remote.send(resp);

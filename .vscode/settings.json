@@ -62,6 +62,7 @@
         "ostream": "cpp",
         "regex": "cpp",
         "set": "cpp",
-        "typeindex": "cpp"
+        "typeindex": "cpp",
+        "codecvt": "cpp"
     }
 }

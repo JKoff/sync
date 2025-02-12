@@ -419,9 +419,9 @@ void logbuf(const void *buf, size_t len, ostream &stream) {
 
 	stringstream ssfmt;
 	for (int i=0; i < len; i++) {
-		ssfmt << setfill('0') << setw(2) << hex
-		      << static_cast<unsigned int>(((const unsigned char*)buf)[i])
-		      << " ";
+		ssfmt << std::setfill('0') << std::setw(2) << std::hex
+			  << static_cast<unsigned int>(((const unsigned char*)buf)[i])
+			  << L" ";
 
 		if (i % 4 == 3) {
 			ssfmt << "| ";

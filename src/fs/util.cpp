@@ -5,17 +5,17 @@
 
 using namespace std;
 
-bool filterPath(const string &root, const vector<regex> excludes, const string &path) {
+bool filterPath(const std::filesystem::path &root, const vector<wregex> excludes, const std::filesystem::path &path) {
     // Scanner's ignoring these anyway since it doesn't want to infinitely recurse into .,
     // but the watcher doesn't ignore these so we ignore them here.
 
-    if (path.size() == root.size()) {
+    if (std::filesystem::equivalent(path, root)) {
         return true;
     }
 
-    string relpath = path.substr(root.length() + 1);
+    wstring relpath = std::filesystem::relative(path, root).wstring();
 
-    for (const regex &r : excludes) {
+    for (const wregex &r : excludes) {
         if (regex_search(relpath, r)) {
             return false;
         }

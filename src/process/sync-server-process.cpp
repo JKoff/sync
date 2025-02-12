@@ -17,7 +17,7 @@ using namespace std;
 //////////////
 
 SyncServerProcess::SyncServerProcess(
-    const string &host, const string &port, const string &root, Index &index, const string &instanceId
+    const string &host, const string &port, const std::filesystem::path &root, Index &index, const string &instanceId
 ) {
     this->host = host;
     this->port = port;
@@ -87,7 +87,7 @@ void SyncServerProcess::main() {
 
                             st.mode = ConnType::XFR;
                             logTag("xfr");
-                            st.xfrPath = root + req->plan.file.path;
+                            st.xfrPath = root / req->plan.file.path;
                             st.xfrTargetPath = req->plan.file.targetPath;
                             st.xfrType = (FileRecord::Type)(req->plan.file.type);
                         } else {
@@ -102,10 +102,10 @@ void SyncServerProcess::main() {
 
                 switch (st.mode) {
                 case ConnType::SYNC:
-                    RETHROW_NESTED(notDone = this->syncLoop(st), "syncLoop" << " path=" << st.xfrPath << " target=" << st.xfrTargetPath << " type=" << st.xfrType);
+                    RETHROW_NESTED(notDone = this->syncLoop(st), "syncLoop" << " path=" << st.xfrPath.string() << " target=" << st.xfrTargetPath.string() << " type=" << st.xfrType);
                     break;
                 case ConnType::XFR:
-                    RETHROW_NESTED(notDone = this->xfrLoop(st), "xfrLoop" << " path=" << st.xfrPath << " target=" << st.xfrTargetPath << " type=" << st.xfrType);
+                    RETHROW_NESTED(notDone = this->xfrLoop(st), "xfrLoop" << " path=" << st.xfrPath.string() << " target=" << st.xfrTargetPath.string() << " type=" << st.xfrType);
                     break;
                 default: throw runtime_error("Connection in bad state.");
                 }
@@ -158,7 +158,7 @@ bool SyncServerProcess::syncLoop(State &st) {
                 MSG::DiffCommit *req = dynamic_cast<MSG::DiffCommit*>(msg);
                 list<Relpath> deleted = this->index->commit(req->epoch);
                 for (auto i : deleted) {
-                    Relpath path = root + i;
+                    Relpath path = root / i;
                     this->removeFile(path);
                     scanSingle(path, [this] (const FileRecord &rec) {
                         this->index->update(rec);
@@ -182,7 +182,7 @@ bool SyncServerProcess::syncLoop(State &st) {
 
 void SyncServerProcess::receiveFile(State &st) {
     // Create parent directories if necessary
-    string parent = st.xfrPath.substr(0, st.xfrPath.find_last_of("/"));
+    std::filesystem::path parent = std::filesystem::relative("..", st.xfrPath);
     if (!std::filesystem::exists(parent)) {
         std::filesystem::create_directories(parent);
     }
@@ -190,7 +190,7 @@ void SyncServerProcess::receiveFile(State &st) {
     ofstream f(st.xfrPath, ios_base::trunc);
     if (f.fail()) {
         StatusLine::Add("fileWriteErr", 1);
-        throw runtime_error("Failed to open file " + st.xfrPath);
+        throw runtime_error("Failed to open file " + st.xfrPath.string());
     }
 
     for (;;) {
@@ -200,7 +200,7 @@ void SyncServerProcess::receiveFile(State &st) {
         f.write(reinterpret_cast<char*>(block->data.data()), block->data.size());
         if (f.bad()) {
             StatusLine::Add("fileWriteErr", 1);
-            throw runtime_error("File is now in 'bad' state " + st.xfrPath);
+            throw runtime_error("File is now in 'bad' state " + st.xfrPath.string());
         }
 
         if (block->data.size() < MSG::XfrBlock::MAX_SIZE) {
@@ -211,7 +211,7 @@ void SyncServerProcess::receiveFile(State &st) {
 
 void SyncServerProcess::receiveSymlink(State &st) {
     // Create parent directories if necessary
-    string parent = st.xfrPath.substr(0, st.xfrPath.find_last_of("/"));
+    std::filesystem::path parent = std::filesystem::relative("..", st.xfrPath);
     if (!std::filesystem::exists(parent)) {
         std::filesystem::create_directories(parent);
     }
@@ -223,7 +223,7 @@ void SyncServerProcess::receiveSymlink(State &st) {
     }
 }
 
-void SyncServerProcess::removeFile(const string &path) {
+void SyncServerProcess::removeFile(const std::filesystem::path &path) {
     try {
         File f(path);
         f.remove();
@@ -240,7 +240,7 @@ bool SyncServerProcess::xfrLoop(State &st) {
         }
 
         if (access(st.xfrPath.c_str(), W_OK) != 0) {
-            throw runtime_error("No write permissions to directory: " + st.xfrPath);
+            throw runtime_error("No write permissions to directory: " + st.xfrPath.string());
         }
 
         StatusLine::Add("dirsIn", 1);
@@ -248,7 +248,7 @@ bool SyncServerProcess::xfrLoop(State &st) {
         break;
     case FileRecord::Type::DOES_NOT_EXIST:
         if (access(st.xfrPath.c_str(), W_OK) != 0) {
-            throw runtime_error("No permissions to delete directory: " + st.xfrPath);
+            throw runtime_error("No permissions to delete directory: " + st.xfrPath.string());
         }
 
         this->removeFile(st.xfrPath);

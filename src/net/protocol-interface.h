@@ -86,5 +86,6 @@ namespace MSG {
 }
 
 std::ostream& operator<<(std::ostream &stream, const MSG::Type &type);
+std::wostream& operator<<(std::wostream &stream, const MSG::Type &type);
 
 #endif

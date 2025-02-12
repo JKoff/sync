@@ -61,13 +61,13 @@ int main(int argc, char **argv) {
         exitWithUsage(argv[0]);
     }
 
-    const Abspath ROOT = realpath(".");
+    const Abspath ROOT = std::filesystem::current_path();
     const string INSTANCE_ID = argv[1];
     const string COOKIE = argv[2];
     bool verbose = false, silent = false;
 
     vector<string> replicas;
-    vector<regex> excludes;
+    vector<wregex> excludes;
     for (int i=3; i < argc; i++) {
         string str = argv[i];
         if (str == "--verbose") {
@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
         if (name == "replica") {
             replicas.push_back(val);
         } else if (name == "exclude") {
-            regex r(val);
+            wregex r(wstring(val.begin(), val.end()));
             excludes.push_back(r);
             LOG("Exclude " << val);
         }
@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
     // Get up to speed locally //
     /////////////////////////////
 
-    function<bool (const string &)> filterFn = bind(filterPath, ref(ROOT), excludes, _1);
+    function<bool (const std::filesystem::path &)> filterFn = bind(filterPath, ref(ROOT), excludes, _1);
 
     function<void (const FileRecord &)> updateFn = [&index, &filterFn] (const FileRecord &rec) {
         if (filterFn(rec.path)) {
@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
             if (filterFn(rec.path)) {
                 index.update(rec);
 
-                Relpath path = rec.path.substr(ROOT.length());
+                Relpath path = std::filesystem::relative(rec.path, ROOT);
                 PolicyFile file = { path, rec.targetPath, rec.type };
                 for (auto policyHost : policyHosts) {
                     transferProc.castTransfer(policyHost, file);

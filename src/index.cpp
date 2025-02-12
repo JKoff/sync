@@ -15,7 +15,7 @@ using namespace std;
 Index::Index(const Abspath &root) : root(root) {
 	IndexEntry entry;
 	entry.type = FileRecord::Type::DIRECTORY;
-	this->paths[""] = entry;
+	this->paths[L""] = entry;
 }
 
 Index::~Index() {
@@ -34,14 +34,14 @@ size_t Index::size() {
 void Index::update(const FileRecord &rec) {
 	lock_guard<recursive_mutex> lock(this->stateMutex);
 
-	Relpath path = rec.path.substr(this->root.length());
-	if (path.length() == 0) {
+	Relpath path = std::filesystem::relative(rec.path, this->root);
+	if (path.empty()) {
 		// Just ignore it...
 		return;
 	}
 
-	Relpath parent = pathParent(path);
-	if (parent.length() > 0 && this->paths.find(parent) == this->paths.end()) {
+	Relpath parent = path.parent_path();
+	if (parent.empty() && this->paths.find(parent) == this->paths.end()) {
 		// cout << "Ignoring " << rec.path << " because we don't have " << parent << " indexed." << endl;
 		return;
 	}
@@ -54,7 +54,7 @@ void Index::update(const FileRecord &rec) {
 		// The original is going to get mutated as we go down, breaking iteration.
 		set<Relpath> childrenCopy = this->paths[path].children;
 		for (const Relpath &child : childrenCopy) {
-			FileRecord subrec(FileRecord::Type::DOES_NOT_EXIST, 0, this->root + child);
+			FileRecord subrec(FileRecord::Type::DOES_NOT_EXIST, 0, this->root / child);
 			this->update(subrec);
 		}
 
@@ -65,6 +65,7 @@ void Index::update(const FileRecord &rec) {
 	case FileRecord::Type::FILE:
 	case FileRecord::Type::DIRECTORY:
 	case FileRecord::Type::SYMLINK:
+		// LOG("Updating " << path << " with hash " << rec.version << " under parent " << parent);
 		this->paths[path].mode = rec.mode;
 		this->paths[path].version = rec.version;
 		this->paths[path].targetPath = rec.targetPath;  // only used by symlinks
@@ -78,12 +79,9 @@ void Index::update(const FileRecord &rec) {
 		this->updateHash(path);
 
 		// Now that index is locally updated, make sure all parents' hashes are updated.
-		list<pair<Relpath,Relpath>> parents = pathParents(path);
+		list<std::filesystem::path> parents = pathParents(path);
 		// We can rely on pathParents' ordering guarantees (more nested -> less nested).
-		for (auto parent_child : parents) {
-			Relpath parent = parent_child.first;
-			Relpath child = parent_child.second;
-
+		for (auto parent : parents) {
 			this->updateHash(parent);
 		}
 
@@ -99,7 +97,7 @@ void Index::rebuildBlock(std::function<void ()> fn) {
 
 	this->rebuildInProgress = true;
 	fn();
-	this->rebuildIndex("");
+	this->rebuildIndex(L"");
 	this->rebuildInProgress = false;
 
 	LOG("Rebuild completed with " << this->size() << " items and hash=" << this->hash());
@@ -117,7 +115,7 @@ void Index::diff(
 	deque<Relpath> seen;
 	deque<Relpath> processing;
 
-	seen.push_back("");
+	seen.push_back(L"");
 
 	// For each level
 	while (!seen.empty()) {
@@ -161,9 +159,9 @@ HashT Index::expectedHash(const Relpath &path) {
 list<Relpath> Index::commit(uint64_t epoch) {
 	lock_guard<recursive_mutex> lock(this->stateMutex);
 	list<Relpath> result;
-	this->forEach("", [epoch,&result] (const Relpath &path, const IndexEntry &entry) {
+	this->forEach(L"", [epoch,&result] (const Relpath &path, const IndexEntry &entry) {
 		if (entry.epoch == epoch && entry.expectedHash == entry.hash) {
-			// This node was a match, so all its descendents are fine.
+			// This node was a match, so all its descendants are fine.
 			return false;
 		}
 
@@ -189,7 +187,7 @@ set<Relpath> Index::children(const Relpath &path) {
 HashT hashCombine(HashT seed, const Relpath &str) {
 	HashT result = seed;
 
-	for (char c : str) {
+	for (wchar_t c : str.wstring()) {
 		result = result * 101 + c;
 	}
 

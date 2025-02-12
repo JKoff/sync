@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <filesystem>
 #include <functional>
 #include <list>
 #include <map>
@@ -17,10 +18,10 @@ class Index {
 	struct IndexEntry {
 		// Filesystem structure
 		FileRecord::Type type;
-		mode_t mode;
+		std::filesystem::perms mode;
 		HashT version = 0;
 		std::set<Relpath> children;
-		std::string targetPath;  // for symlinks
+		std::filesystem::path targetPath;  // for symlinks
 
 		// Merkle tree node value
 		HashT hash;
@@ -36,7 +37,7 @@ public:
 	Index() = delete;
 	Index(const Abspath &root);
 	void update(const FileRecord &rec);
-	HashT hash(Relpath path="");
+	HashT hash(Relpath path=L"");
 	size_t size();
 	~Index();
 

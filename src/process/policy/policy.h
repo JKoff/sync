@@ -74,7 +74,7 @@ struct PolicyStats {
 
 struct PolicyFile {
 	Relpath path;
-	std::string targetPath;  // for symlinks only
+	std::filesystem::path targetPath;  // for symlinks only
 	FileRecord::Type type;
 
 	void serialize(std::ostream &stream) const {
@@ -89,7 +89,8 @@ struct PolicyFile {
 	}
 	std::string debugString() const {
 		std::stringstream stream;
-		stream << "PolicyFile[" << this->path << " | " << this->targetPath << " | " << this->type << "]";
+		// stream << L"PolicyFile[" << this->path << L" | " << this->targetPath << L" | " << std::to_wstring(static_cast<int>(this->type)) << L"]";
+		stream << "PolicyFile[" << this->path << " | " << this->targetPath << " | " << std::to_string(static_cast<int>(this->type)) << "]";
 		return stream.str();
 	}
 };

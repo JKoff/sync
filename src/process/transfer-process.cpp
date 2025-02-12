@@ -52,7 +52,7 @@ private:
 class TransferWorker {
 public:
     TransferWorker() = default;
-    void bind(const string &root, Policy *policy, const PolicyHost &host, TransferCounter &xfrCounter) {
+    void bind(const std::filesystem::path &root, Policy *policy, const PolicyHost &host, TransferCounter &xfrCounter) {
         this->root = root;
         this->policy = policy;
         this->host = host;
@@ -98,7 +98,7 @@ public:
     }
     void transfer(const PolicyPlan &plan, PersistentSocket &hostSock, std::function<void (string)> statusFn) {
         assert(plan.steps.value == this->host);
-        statusFn("Transfer - " + plan.file.path);
+        statusFn("Transfer - " + plan.file.path.string());
 
         // if (plan.file.path == "") {
         //     // This is going to be a no-op anyway.
@@ -108,7 +108,7 @@ public:
         //     return;
         // }
 
-        if (!std::filesystem::exists(this->root + plan.file.path)) {
+        if (!std::filesystem::exists(this->root / plan.file.path)) {
             StatusLine::Add("fileGone", 1);
             return;
         }
@@ -118,10 +118,10 @@ public:
         RETHROW_NESTED(hostSock.send(req), "transfer");
 
         if (plan.file.type == FileRecord::Type::FILE) {
-            ifstream f(this->root + req.plan.file.path, ifstream::binary);
+            ifstream f(this->root / req.plan.file.path, ifstream::binary);
             if (f.fail()) {
                 StatusLine::Add("fileReadErr", 1);
-                throw runtime_error("Failed to open file " + req.plan.file.path);
+                throw runtime_error("Failed to open file " + req.plan.file.path.string());
             }
 
             // If this resize is changed to a reserve, the contents of the buffer are sometimes
@@ -129,20 +129,20 @@ public:
             this->block.data.resize(MSG::XfrBlock::MAX_SIZE);
 
             while (f.good()) {
-                statusFn("Transfer - " + plan.file.path + " - " + to_string(f.tellg()) + " - read");
+                statusFn("Transfer - " + plan.file.path.string() + " - " + to_string(f.tellg()) + " - read");
                 f.read((char*)this->block.data.data(), MSG::XfrBlock::MAX_SIZE);
                 if (f.bad()) {
                     StatusLine::Add("fileReadErr", 1);
-                    throw runtime_error("File is now in 'bad' state " + req.plan.file.path);
+                    throw runtime_error("File is now in 'bad' state " + req.plan.file.path.string());
                 }
                 this->block.data.resize(f.gcount());
-                statusFn("Transfer - " + plan.file.path + " - " + to_string(f.tellg()) + " - send");
+                statusFn("Transfer - " + plan.file.path.string() + " - " + to_string(f.tellg()) + " - send");
                 RETHROW_NESTED(hostSock.send(this->block), "sending xfr file block");
                 StatusLine::Add("essentialOut", this->block.data.size());
             }
 
             // If file is already empty, closing protocol is already satisfied.
-            statusFn("Transfer - " + plan.file.path + " - " + to_string(f.tellg()) + " - empty-send");
+            statusFn("Transfer - " + plan.file.path.string() + " - " + to_string(f.tellg()) + " - empty-send");
             if (this->block.data.size() == MSG::XfrBlock::MAX_SIZE) {
                 this->block.data.resize(0);
                 RETHROW_NESTED(hostSock.send(this->block), "sending xfr empty file block");
@@ -173,7 +173,7 @@ public:
     }
 private:
     thread th;
-    string root;
+    std::filesystem::path root;
     Policy *policy;
     PolicyHost host;
     // We reuse a block instead of freeing and reallocing over and over again.
@@ -185,7 +185,7 @@ private:
 //////////////
 
 TransferProcess::TransferProcess(
-    const string &root, const PolicyHost &us, Policy &policy, const vector<PolicyHost> &peers
+    const std::filesystem::path &root, const PolicyHost &us, Policy &policy, const vector<PolicyHost> &peers
 ) : root(root), policy(&policy), us(us), peers(peers) {
     this->th = thread([this] () {
         this->main();

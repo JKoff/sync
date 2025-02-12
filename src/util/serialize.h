@@ -1,6 +1,7 @@
 #ifndef UTIL_SERIALIZE_H
 #define UTIL_SERIALIZE_H
 
+#include <filesystem>
 #include <istream>
 #include <iostream>
 #include <map>
@@ -45,6 +46,9 @@ void deserialize(std::istream &stream, bool &val);
 void serialize(std::ostream &stream, const MSG::Type &type);
 void deserialize(std::istream &stream, MSG::Type &type);
 
+void serialize(std::ostream &stream, const std::filesystem::perms &type);
+void deserialize(std::istream &stream, std::filesystem::perms &type);
+
 
 /////////////////////
 // Composite types //
@@ -52,6 +56,12 @@ void deserialize(std::istream &stream, MSG::Type &type);
 
 void serialize(std::ostream &stream, const std::string &str);
 void deserialize(std::istream &stream, std::string &str);
+
+void serialize(std::ostream &stream, const std::wstring &str);
+void deserialize(std::istream &stream, std::wstring &str);
+
+void serialize(std::ostream &stream, const std::filesystem::path &path);
+void deserialize(std::istream &stream, std::filesystem::path &path);
 
 void serialize(std::ostream &stream, const std::vector<uint8_t> &vec);
 void deserialize(std::istream &stream, std::vector<uint8_t> &vec);

@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -21,10 +22,10 @@
 class Watcher {
 public:
 	Watcher() = delete;
-	Watcher(const std::string &root, std::function<void (const FileRecord &rec)> callback);
+	Watcher(const std::filesystem::path &root, std::function<void (const FileRecord &rec)> callback);
 	~Watcher();
 
-	void onEvent(const std::string& path);
+	void onEvent(const std::filesystem::path& path);
 private:
 
 	std::function<void (const FileRecord &rec)> callback;

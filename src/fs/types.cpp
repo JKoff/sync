@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -37,13 +38,13 @@ FileRecord::FileRecord(const File &f) {
     HashT version = NULL_HASH;
 
     FileRecord::Type type;
-    if (S_ISDIR(f.statbuf.st_mode)) {
+    if (std::filesystem::is_directory(f.statbuf)) {
         type = Type::DIRECTORY;
         version = 0;
-    } else if (S_ISREG(f.statbuf.st_mode)) {
+    } else if (std::filesystem::is_regular_file(f.statbuf)) {
         type = Type::FILE;
         version = f.hash();
-    } else if (S_ISLNK(f.statbuf.st_mode)) {
+    } else if (std::filesystem::is_symlink(f.statbuf)) {
         type = Type::SYMLINK;
         std::filesystem::path symlinkPath(f.path);
         this->targetPath = std::filesystem::read_symlink(symlinkPath);
@@ -54,12 +55,12 @@ FileRecord::FileRecord(const File &f) {
 
     this->path = f.path;
     this->type = type;
-    this->mode = f.statbuf.st_mode;
+    this->mode = f.statbuf.permissions();
     this->version = version;
 }
 
 // No validation takes place in this case.
-FileRecord::FileRecord(Type type, HashT version, std::string path, mode_t mode)
+FileRecord::FileRecord(Type type, HashT version, Abspath path, std::filesystem::perms mode)
     : type(type), mode(mode), version(version), path(path) { }
 
 
@@ -68,6 +69,25 @@ FileRecord::FileRecord(Type type, HashT version, std::string path, mode_t mode)
 //////////////////////
 
 std::ostream& operator<<(std::ostream &os, const FileRecord::Type &type) {
+    switch (type) {
+        case FileRecord::Type::FILE:
+            os << "FILE";
+            break;
+        case FileRecord::Type::DIRECTORY:
+            os << "DIRECTORY";
+            break;
+        case FileRecord::Type::SYMLINK:
+            os << "SYMLINK";
+            break;
+        case FileRecord::Type::DOES_NOT_EXIST:
+            os << "GONE";
+            break;
+    }
+
+    return os;
+}
+
+std::wostream& operator<<(std::wostream &os, const FileRecord::Type &type) {
     switch (type) {
         case FileRecord::Type::FILE:
             os << "FILE";
@@ -100,22 +120,12 @@ void deserialize(std::istream &stream, FileRecord::Type &val) {
 // Directory //
 ///////////////
 
-Directory::Directory(const File &f) : exhausted(false) {
-    DIR *d = opendir(f.path.c_str());
-    if (d == nullptr) {
-        throw runtime_error("Could not turn fd into DIR*.");
-    }
-
-    // Commit
-    this->d = d;
-    this->path = f.path;
-}
+Directory::Directory(const File &f) : exhausted(false), path(f.path) { }
 
 Directory::~Directory() {
-    closedir(this->d);
 }
 
-void Directory::forEach(function<void (struct dirent*)> f) {
+void Directory::forEach(function<void (const std::filesystem::directory_entry&)> f) {
     // Have we already done a forEach?
     // Current code doesn't support rewind, so...
     if (this->exhausted) {
@@ -123,36 +133,30 @@ void Directory::forEach(function<void (struct dirent*)> f) {
     }
     this->exhausted = true;
 
-    struct dirent *dp;
-
-    while ((dp = readdir(this->d)) != nullptr) {
-        if (dp->d_type != DT_REG && dp->d_type != DT_DIR && dp->d_type != DT_LNK) {
-            ERR("Found non-regular file: " + string(dp->d_name) + " in " + this->path + " with type " + to_string(dp->d_type));
+    for (auto const& entry : std::filesystem::directory_iterator{this->path}) {
+        if (!entry.is_regular_file() && !entry.is_directory() && !entry.is_symlink()) {
+            ERR("Found non-regular file in " << this->path << ": " << entry);
             StatusLine::Add("irregularFile", 1);
             continue;
         }
-    	if (dp->d_name[0] == '.') {
-	        if (dp->d_name[1] == 0) {
-	            continue;
-	        } else if (dp->d_name[1] == '.' || dp->d_name[2] == 0) {
-	            continue;
-	        }
+    	if (entry.path().filename() == "." || entry.path().filename() == "..") {
+            continue;
 	    }
 
-        f(dp);
+        f(entry);
     }
 }
 
 void Directory::remove() {
-	this->forEach([this] (struct dirent *dp) {
+	this->forEach([] (const std::filesystem::directory_entry& entry) {
         // Possible race condition in condition since filename might change.
         // This is fine as long as we remember to start listening for
         // change events before the initial traverse starts.
-        File f(*this, dp->d_name);
+        File f(entry.path());
         f.remove();
 	});
 
-	rmdir(this->path.c_str());
+    std::filesystem::remove(this->path);
 }
 
 
@@ -160,32 +164,19 @@ void Directory::remove() {
 // File //
 //////////
 
-File::File(const char *path) {
+File::File(const std::filesystem::path& path) {
     this->init(path);
 }
-File::File(const string &path) {
-    this->init(path);
-}
-File::File(const Directory &dir, const char *name) {
-    stringstream ss;
-    ss << dir.path << "/" << name;
 
-    this->init(ss.str());
-}
-
-void File::init(string path) {
-    struct stat statbuf;
-    if (lstat(path.c_str(), &statbuf) != 0) {
-        if (errno == ENOENT) {
-            throw does_not_exist_error("File does not exist: " + path);
-        } else {
-            throw runtime_error("Could not stat file " + path + ": " + strerror(errno));
-        }
+void File::init(const std::filesystem::path& path) {
+    std::filesystem::file_status statbuf = std::filesystem::symlink_status(path);
+    if (!std::filesystem::exists(statbuf)) {
+        throw does_not_exist_error("File does not exist: " + path.string());
     }
 
     // Commit
-    this->statbuf = statbuf;
     this->path = path;
+    this->statbuf = statbuf;
 }
 
 // Hash timing:
@@ -201,7 +192,7 @@ HashT File::hash() const {
 
     XXH64_state_t st;
     if (XXH64_reset(&st, 0) == XXH_ERROR) {
-        throw runtime_error("Could not reset xxhash state for file: " + this->path);
+        throw runtime_error("Could not reset xxhash state for file: " + this->path.string());
     }
 
     f.seekg(0, f.end);
@@ -213,7 +204,7 @@ HashT File::hash() const {
         f.read((char*)buf, sz);
 
         if (XXH64_update(&st, buf, sz) == XXH_ERROR) {
-            throw runtime_error("Could not update xxhash for file: " + this->path);
+            throw runtime_error("Could not update xxhash for file: " + this->path.string());
         }
         
         len -= sz;
@@ -225,11 +216,11 @@ HashT File::hash() const {
 }
 
 bool File::isDir() const {
-    return S_ISDIR(this->statbuf.st_mode);
+    return std::filesystem::is_directory(this->statbuf);
 }
 
 bool File::isLink() const {
-    return S_ISLNK(this->statbuf.st_mode);
+    return std::filesystem::is_symlink(this->statbuf);
 }
 
 void File::remove() {
@@ -237,7 +228,7 @@ void File::remove() {
         Directory subdir(*this);
         subdir.remove();
     } else {
-    	unlink(this->path.c_str());
+        std::filesystem::remove(this->path);
     }
 }
 
