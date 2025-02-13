@@ -9,7 +9,7 @@ bool filterPath(const std::filesystem::path &root, const vector<wregex> excludes
     // Scanner's ignoring these anyway since it doesn't want to infinitely recurse into .,
     // but the watcher doesn't ignore these so we ignore them here.
 
-    if (std::filesystem::equivalent(path, root)) {
+    if (path == root) {
         return true;
     }
 
