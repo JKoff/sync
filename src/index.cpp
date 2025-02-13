@@ -65,9 +65,9 @@ void Index::update(const FileRecord &rec) {
 	case FileRecord::Type::FILE:
 	case FileRecord::Type::DIRECTORY:
 	case FileRecord::Type::SYMLINK:
-		// if (rand() % 100 == 0) {
-		// 	LOG("Updating " << path << " with version " << rec.version << " and original path " << rec.path);
-		// }
+		if (rand() % 1000 == 0) {
+			LOG("[sampled 1/1000] Scanning " << path);
+		}
 		this->paths[path].mode = rec.mode;
 		this->paths[path].version = rec.version;
 		this->paths[path].targetPath = rec.targetPath;  // only used by symlinks
@@ -143,9 +143,10 @@ void Index::diff(
 			}
 		}
 
-		LOG("The following files failed diff more than once in a row: ");
 		for (const auto& [path, val] : this->repeatOffenders) {
-			LOG("  " << path << " failed " << val << " times.");
+			if (val == 10) {
+				LOG("Warning: " << path << " re-diffing " << val << " times in a row.");
+			}
 		}
 
 		// processing is empty
