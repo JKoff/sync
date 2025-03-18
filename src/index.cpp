@@ -41,7 +41,7 @@ void Index::update(const FileRecord &rec) {
 	}
 
 	Relpath parent = path.parent_path();
-	if (parent.empty() && this->paths.find(parent) == this->paths.end()) {
+	if (this->paths.find(parent) == this->paths.end()) {
 		// cout << "Ignoring " << rec.path << " because we don't have " << parent << " indexed." << endl;
 		return;
 	}
