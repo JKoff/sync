@@ -87,8 +87,6 @@ void Index::update(const FileRecord &rec) {
 			this->updateHash(parent);
 		}
 
-		stringstream ss;
-		ss << this->hash();
 		STATUSGLOBAL("H(index)", this->hash());
 		StatusLine::Set("|index|", this->size());
 	}
